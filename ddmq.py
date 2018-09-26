@@ -55,6 +55,7 @@ class Message:
         self.filename = filename
         self.requeue = requeue
 
+
     @classmethod
     def json2msg(self, package):
         """Converty a JSON object to a Message object"""
@@ -125,8 +126,6 @@ class ddmq:
     settings =  {'message_timeout': 600, 'cleaned':0}
 
 
-
-
     def __init__(self, root, create=False):
         """Initialize a ddmq object at a specified root directory. If the create flag is set to True it will create the directories needed if they are missing"""
 
@@ -155,10 +154,12 @@ class ddmq:
         log.debug('Updating settings from config file at {}/ddmq.conf'.format(self.root))
         self.update_settings(os.path.join(self.root, 'ddmq.conf'))
 
+
     def get_queue_settings(self, queue):
         """Get settings from a config file from a specified queue dir, overriding the global settings from the config file in the root directory"""
         log.debug('Updating settings from config file at {}/ddmq.conf'.format(os.path.join(self.root, queue)))
         self.update_settings(os.path.join(self.root, queue, 'ddmq.conf'))
+
 
     def update_settings(self, path):
         """Reads the settings from a config file and overrides the settings already in memory"""
@@ -195,13 +196,13 @@ class ddmq:
 
 
 
- #####  #       #######    #    #     # 
-#     # #       #         # #   ##    # 
-#       #       #        #   #  # #   # 
-#       #       #####   #     # #  #  # 
-#       #       #       ####### #   # # 
-#     # #       #       #     # #    ## 
- #####  ####### ####### #     # #     # 
+ #####  #       #######    #    #     # ### #     #  #####  
+#     # #       #         # #   ##    #  #  ##    # #     # 
+#       #       #        #   #  # #   #  #  # #   # #       
+#       #       #####   #     # #  #  #  #  #  #  # #  #### 
+#       #       #       ####### #   # #  #  #   # # #     # 
+#     # #       #       #     # #    ##  #  #    ## #     # 
+ #####  ####### ####### #     # #     # ### #     #  #####  
 
     def clean(self, queue, get_queue_settings=True):
         """Clean out expired message from a specified queue"""
@@ -275,13 +276,13 @@ class ddmq:
 
 
 
- #####  #     # ####### #     # #######    ####### ######  
-#     # #     # #       #     # #          #     # #     # 
-#     # #     # #       #     # #          #     # #     # 
-#     # #     # #####   #     # #####      #     # ######  
-#   # # #     # #       #     # #          #     # #       
-#    #  #     # #       #     # #          #     # #       
- #### #  #####  #######  #####  #######    ####### #     
+ #####  #     # ####### #     # #######    ####### ######   #####  
+#     # #     # #       #     # #          #     # #     # #     # 
+#     # #     # #       #     # #          #     # #     # #       
+#     # #     # #####   #     # #####      #     # ######   #####  
+#   # # #     # #       #     # #          #     # #             # 
+#    #  #     # #       #     # #          #     # #       #     # 
+ #### #  #####  #######  #####  #######    ####### #        #####  
 
     def delete_queue(self, queue):
         """Delete a specified queue"""
@@ -429,8 +430,6 @@ class ddmq:
         msg.id = uuid.uuid4().hex
         msg.filename = os.path.join(queue, '{}.{}.ddmq{}'.format(msg.priority, msg.queue_number, msg.id))
 
-        # Tracer()()
-
         # write the message to file
         msg_filepath = os.path.join(self.root, msg.filename)
         with open(msg_filepath, 'w') as message_file:
@@ -473,8 +472,6 @@ class ddmq:
                 message_timeout = int(time.time()) + msg.timeout
             else:    
                 message_timeout = int(time.time()) + self.settings['message_timeout']
-
-            
 
             # move to the work folder, adding the message expiry time to the file name
             msg_work_path = os.path.join(self.root, queue, 'work', '{}.{}'.format(message_timeout, msg_filename))
