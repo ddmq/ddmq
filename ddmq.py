@@ -8,6 +8,7 @@ import json
 import time
 import sys
 import fnmatch
+import argparse
 
 from IPython.core.debugger import Tracer
 
@@ -89,7 +90,7 @@ class ddmq:
 
     def create_queue(self, queue):
         self.create_folder(os.path.join(self.root, queue))
-        self.create_folder(os.path.join(self.root, queue, 'processing'))
+        self.create_folder(os.path.join(self.root, queue, 'work'))
         return True
 
 
@@ -125,7 +126,7 @@ class ddmq:
             # try creating the queue if asked to
             if self.create:
                 self.create_folder(os.path.join(self.root, queue))
-                self.create_folder(os.path.join(self.root, queue, 'processing'))
+                self.create_folder(os.path.join(self.root, queue, 'work'))
                 messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
             else:
                 # raise an error otherwise
@@ -161,7 +162,7 @@ class ddmq:
         # if it is set, make sure it't not negative
         else:
             if priority < 0:
-                raise ValueError('Warning, priority set to less than 0 (priority={}). Negative numbers will be sorted in the wrong order when processing messages.'.format(priority))
+                raise ValueError('Warning, priority set to less than 0 (priority={}). Negative numbers will be sorted in the wrong order when working with messages.'.format(priority))
 
         # init a new message object
         msg = Message(message=message, queue=queue, priority=priority, timestamps=[time.time()])
@@ -202,19 +203,19 @@ class ddmq:
             # construct the path to the file
             msg_filepath = os.path.join(self.root, queue, msg_filename)
             
-            # create the new path to the file in the processing folder
-            msg_processing_path = os.path.join(self.root, queue, 'processing', '{}.{}'.format(int(time.time()), msg_filename))
+            # create the new path to the file in the work folder
+            msg_work_path = os.path.join(self.root, queue, 'work', '{}.{}'.format(int(time.time()), msg_filename))
 
-            # move to the processing folder, adding the current epoch time as a timestamp
-            os.rename(msg_filepath, msg_processing_path)
+            # move to the work folder, adding the current epoch time as a timestamp
+            os.rename(msg_filepath, msg_work_path)
 
             # load the message from the file
-            with open(msg_processing_path, 'r') as msg_processing_handle:
-                msg.json2msg(json.load(msg_processing_handle))
+            with open(msg_work_path, 'r') as msg_work_handle:
+                msg.json2msg(json.load(msg_work_handle))
                 restored_messages.append(msg)
 
             # update the file path
-            restored_messages[-1].filename = os.path.join(queue, 'processing', '{}.{}'.format(int(time.time()), msg_filename))
+            restored_messages[-1].filename = os.path.join(queue, 'work', '{}.{}'.format(int(time.time()), msg_filename))
 
         # return depending on how many messages are collected
         if len(restored_messages) == 0:
@@ -239,6 +240,15 @@ if __name__ == "__main__":
     # Tracer()()
     print(msg)
 
+    parser = argparse.ArgumentParser(description='Dead Drop Messaging Queue')
+    parser.add_argument('--queue', metavar='q', type=str,
+                    help='name of the queue')
+    parser.add_argument('--message', dest='accumulate', action='store_const',
+                    const=sum, default=max,
+                    help='sum the integers (default: find the max)')
+
+    args = parser.parse_args()
+    print(args.accumulate(args.integers))
 
 
 
