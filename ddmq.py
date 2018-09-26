@@ -1,5 +1,9 @@
 #! /usr/bin/env python
 
+# if python2
+from __future__ import print_function
+from __future__ import division
+
 import os
 import stat
 import uuid
@@ -11,6 +15,7 @@ import fnmatch
 import argparse
 
 from IPython.core.debugger import Tracer
+
 
 
 
@@ -28,30 +33,29 @@ class Message:
         self.filename = filename
 
 
-    def json2msg(self, package):
+    def json2msg(package):
 
         # if the package is a string, convert to dict
         if type(package) is str:
             package = json.loads(package)
-        self.message = package['message']
-        self.queue = package['queue']
-        self.timestamps = package['timestamps']
-        self.timeout = package['timeout']
-        self.id = package['id']
-        self.priority = package['priority']
-        self.queue_number = package['queue_number']
-        self.filename = package['filename']
+
+        new_msg = Message()
+        new_msg.__dict__.update(package)
+        return new_msg
 
 
     def msg2json(self):
+        return json.dumps(self.__dict__)
 
-        return json.dumps({'message':self.message, 'queue':self.queue, 'timestamps':self.timestamps, 'timeout':self.timeout, 'id':self.id, 'priority':self.priority, 'queue_number':self.queue_number, 'filename':self.filename})
+    
+    def update(self, package):
+        self.__dict__.update(package)
 
     def __repr__(self):
 
         text = ""
-        for attr in ['message', 'queue', 'timestamps', 'timeout', 'id', 'priority', 'queue_number', 'filename']:
-            text += '{} : {}\n'.format(attr, getattr(msg, attr))
+        for key,val in sorted(self.__dict__.items()):
+            text += '{} = {}\n'.format(key,val)
         return text.rstrip()
 
 
@@ -198,8 +202,6 @@ class ddmq:
         for msg_filename in msg_files:
             # Tracer()()
 
-            msg = Message()
-
             # construct the path to the file
             msg_filepath = os.path.join(self.root, queue, msg_filename)
             
@@ -211,9 +213,10 @@ class ddmq:
 
             # load the message from the file
             with open(msg_work_path, 'r') as msg_work_handle:
-                msg.json2msg(json.load(msg_work_handle))
+                msg = Message.json2msg(json.load(msg_work_handle))
                 restored_messages.append(msg)
 
+            # Tracer()()
             # update the file path
             restored_messages[-1].filename = os.path.join(queue, 'work', '{}.{}'.format(int(time.time()), msg_filename))
 
@@ -237,18 +240,10 @@ if __name__ == "__main__":
     # Tracer()()
 
     msg = ddmq.consume('testmq')
-    # Tracer()()
+    
     print(msg)
 
-    parser = argparse.ArgumentParser(description='Dead Drop Messaging Queue')
-    parser.add_argument('--queue', metavar='q', type=str,
-                    help='name of the queue')
-    parser.add_argument('--message', dest='accumulate', action='store_const',
-                    const=sum, default=max,
-                    help='sum the integers (default: find the max)')
-
-    args = parser.parse_args()
-    print(args.accumulate(args.integers))
+    Tracer()()
 
 
 
@@ -257,5 +252,55 @@ if __name__ == "__main__":
 
 
 
+
+
+
+
+
+
+
+
+
+
+    sys.exit()
+    parser = argparse.ArgumentParser(
+        description='Pretends to be git',
+        usage='''git <command> [<args>]
+
+The most commonly used git commands are:
+list     List queues and number of messages
+create    Download objects and refs from another repository
+remove
+purge
+search
+''')
+    parser.add_argument('command', help='Subcommand to run')
+    # parse_args defaults to [1:] for args, but you need to
+    # exclude the rest of the args too, or validation will fail
+    args = parser.parse_args(sys.argv[1:2])
+    if not hasattr(self, args.command):
+        print('Unrecognized command')
+        parser.print_help()
+        exit(1)
+    # use dispatch pattern to invoke method with same name
+    getattr(self, args.command)()
+
+    def commit(self):
+        parser = argparse.ArgumentParser(
+            description='Record changes to the repository')
+        # prefixing the argument with -- means it's optional
+        parser.add_argument('--amend', action='store_true')
+        # now that we're inside a subcommand, ignore the first
+        # TWO argvs, ie the command (git) and the subcommand (commit)
+        args = parser.parse_args(sys.argv[2:])
+        print('Running git commit, amend={}'.format(args.amend))
+
+    def fetch(self):
+        parser = argparse.ArgumentParser(
+            description='Download objects and refs from another repository')
+        # NOT prefixing the argument with -- means it's not optional
+        parser.add_argument('repository')
+        args = parser.parse_args(sys.argv[2:])
+        print('Running git fetch, repository={}'.format(args.repository))
 
 
