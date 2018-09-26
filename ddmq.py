@@ -28,6 +28,14 @@ from IPython.core.debugger import Tracer
 
 
 
+#     # #######  #####   #####     #     #####  ####### 
+##   ## #       #     # #     #   # #   #     # #       
+# # # # #       #       #        #   #  #       #       
+#  #  # #####    #####   #####  #     # #  #### #####   
+#     # #             #       # ####### #     # #       
+#     # #       #     # #     # #     # #     # #       
+#     # #######  #####   #####  #     #  #####  ####### 
+
 class Message:
     """Class to represent a single message"""
 
@@ -97,6 +105,19 @@ class Message:
 
 
 
+
+
+
+
+
+######  ######  #     #  #####  
+#     # #     # ##   ## #     # 
+#     # #     # # # # # #     # 
+#     # #     # #  #  # #     # 
+#     # #     # #     # #   # # 
+#     # #     # #     # #    #  
+######  ######  #     #  #### # 
+
 class ddmq:
     """Class to interact with messageing queues"""
 
@@ -116,6 +137,19 @@ class ddmq:
         self.get_global_settings()
 
 
+
+
+
+
+
+ #####  ####### ####### ####### ### #     #  #####   #####  
+#     # #          #       #     #  ##    # #     # #     # 
+#       #          #       #     #  # #   # #       #       
+ #####  #####      #       #     #  #  #  # #  ####  #####  
+      # #          #       #     #  #   # # #     #       # 
+#     # #          #       #     #  #    ## #     # #     # 
+ #####  #######    #       #    ### #     #  #####   #####  
+                                                            
     def get_global_settings(self):
         """Get the global settings from the config file in the root dir"""
         log.debug('Updating settings from config file at {}/ddmq.conf'.format(self.root))
@@ -158,6 +192,16 @@ class ddmq:
         os.rename(os.path.join(path, 'ddmq.conf.intermediate'), os.path.join(path, 'ddmq.conf'))
 
 
+
+
+
+ #####  #       #######    #    #     # 
+#     # #       #         # #   ##    # 
+#       #       #        #   #  # #   # 
+#       #       #####   #     # #  #  # 
+#       #       #       ####### #   # # 
+#     # #       #       #     # #    ## 
+ #####  ####### ####### #     # #     # 
 
     def clean(self, queue, get_queue_settings=True):
         """Clean out expired message from a specified queue"""
@@ -227,17 +271,18 @@ class ddmq:
             self.clean(queue)
 
 
-    def create_folder(self, path):
-        """Create a folder at a specified path and make sure the user can rwx the folder"""
-        
-        log.info('Creating folder: {}'.format(path))
 
-        # create the directory recursivly and set correct permissions
-        os.makedirs(path)
-        st = os.stat(path) # fetch current permissions
-        os.chmod(path, st.st_mode | stat.S_IRWXU) # add u+rwx to the folder, leaving g and o as they are
 
-    
+
+
+ #####  #     # ####### #     # #######    ####### ######  
+#     # #     # #       #     # #          #     # #     # 
+#     # #     # #       #     # #          #     # #     # 
+#     # #     # #####   #     # #####      #     # ######  
+#   # # #     # #       #     # #          #     # #       
+#    #  #     # #       #     # #          #     # #       
+ #### #  #####  #######  #####  #######    ####### #     
+
     def delete_queue(self, queue):
         """Delete a specified queue"""
 
@@ -296,6 +341,18 @@ class ddmq:
         return True
 
 
+
+
+
+
+#     # ####### ### #        #####  
+#     #    #     #  #       #     # 
+#     #    #     #  #       #       
+#     #    #     #  #        #####  
+#     #    #     #  #             # 
+#     #    #     #  #       #     # 
+ #####     #    ### #######  #####  
+
     def get_queue_number(self, queue):
         """Generate the next incremental queue number for a specified queue"""
         
@@ -317,6 +374,29 @@ class ddmq:
             
         return max_queue_number+1
 
+
+    def create_folder(self, path):
+        """Create a folder at a specified path and make sure the user can rwx the folder"""
+        
+        log.info('Creating folder: {}'.format(path))
+
+        # create the directory recursivly and set correct permissions
+        os.makedirs(path)
+        st = os.stat(path) # fetch current permissions
+        os.chmod(path, st.st_mode | stat.S_IRWXU) # add u+rwx to the folder, leaving g and o as they are
+
+
+
+
+
+
+### #     # ####### ####### ######     #     #####  ####### 
+ #  ##    #    #    #       #     #   # #   #     #    #    
+ #  # #   #    #    #       #     #  #   #  #          #    
+ #  #  #  #    #    #####   ######  #     # #          #    
+ #  #   # #    #    #       #   #   ####### #          #    
+ #  #    ##    #    #       #    #  #     # #     #    #    
+### #     #    #    ####### #     # #     #  #####     #    
 
     def publish(self, queue, message=None, priority=999, clean=True, requeue=False):
         """Publish a message to a queue"""
@@ -357,6 +437,8 @@ class ddmq:
             message_file.write(msg.msg2json())
 
         return msg
+
+
 
 
     def consume(self, queue, n=1, clean=True):
@@ -412,6 +494,17 @@ class ddmq:
             return restored_messages
 
 
+
+
+
+
+#     #    #    ### #     # 
+##   ##   # #    #  ##    # 
+# # # #  #   #   #  # #   # 
+#  #  # #     #  #  #  #  # 
+#     # #######  #  #   # # 
+#     # #     #  #  #    ## 
+#     # #     # ### #     # 
 
 # debug
 if __name__ == "__main__":
