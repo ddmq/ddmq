@@ -19,9 +19,11 @@ import sys
 import fnmatch
 import argparse
 import logging as log
+import inspect
 
 # import extra modules
 import yaml
+from beautifultable import BeautifulTable
 from IPython.core.debugger import Tracer
 
 
@@ -126,14 +128,23 @@ class ddmq:
     settings =  {'message_timeout': 600, 'cleaned':0}
 
 
-    def __init__(self, root, create=False):
+    def __init__(self, root, create=False, verbose=False, debug=False):
         """Initialize a ddmq object at a specified root directory. If the create flag is set to True it will create the directories needed if they are missing"""
 
+        # logging
+        if verbose:
+            log.basicConfig(format="%(levelname)s:\t%(message)s", level=log.INFO)
+            log.info("Verbose output.")
+        if debug:
+            log.basicConfig(format="%(levelname)s:\t%(message)s", level=log.DEBUG)
+            log.debug("Debug output.")
         log.debug('Initializing ddmq object')
 
         self.create = create
         self.root = root
         self.get_global_settings()
+
+        
 
 
 
@@ -262,11 +273,7 @@ class ddmq:
         log.info('Cleaning all queues')
 
         # list all queues
-        for queue in sorted(os.listdir(self.root)):
-
-            # skip files
-            if not os.path.isdir(os.path.join(self.root, queue)):
-                continue
+        for queue in self.list_queues():
 
             # clean the queue
             self.clean(queue)
@@ -284,10 +291,183 @@ class ddmq:
 #    #  #     # #       #     # #          #     # #       #     # 
  #### #  #####  #######  #####  #######    ####### #        #####  
 
+
+    def list_queues(self):
+        '''Generate a list of all queues (subdirectories) in the root folder'''
+
+        log.debug('Getting queue list')
+
+        queues = []
+        # list all queues
+        for queue in sorted(os.listdir(self.root)):
+
+            # skip files
+            if not os.path.isdir(os.path.join(self.root, queue)):
+                continue
+
+            # save directories
+            queues.append(queue)
+
+        return queues
+
+
+    def get_message_list(self, queue):
+        ''' '''
+
+        log.debug('Listing messages in queue {}'.format(queue))
+        
+        # list all files in queue folder
+        messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
+
+        # list all files in queue work folder
+        try:
+            work_messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*')
+        except (FileNotFoundError, OSError) as e:
+            # the work folder is not really needed to be able to publish messages, and a missing work folder will be handled by the consume function if needed
+            work_messages = []
+
+        return messages, work_messages
+
+
+    def view_cli(self, format_json=True, only_names=True, filter_queues=None):
+        '''Handles the command-line sub-command view'''
+        
+        # get queue names
+        queues = self.list_queues()
+
+        # apply filter if asked to
+        if filter_queues:
+            all_queues = queues
+            queues = []
+            filter_queues = filter_queues.split(',')
+            for queue in all_queues:
+                if queue in filter_queues:
+                    queues.append(queue)
+
+        log.info('Viewing queue(s) {}'.format(', '.join(queues)))
+
+        # if number of messages are to be returned as well
+        if not only_names:
+            queues = dict((key,[0,0]) for key in queues)
+            for queue in queues.keys():
+                msgs = self.get_message_list(queue)
+                queues[queue] = [len(msgs[0]), len(msgs[1])]
+
+        # if the answer is to be formatted as JSON
+        if format_json:
+            return json.dumps(queues)
+
+        # make it beautiful
+        else:
+            table = BeautifulTable()
+            if not only_names:
+                table.column_headers = ["Queue", "msg in queue", "msg at work"]
+            else:
+                table.column_headers = ["Queue"]
+            for queue in queues:
+                if not only_names:
+                    table.append_row([queue, queues[queue][0], queues[queue][1]])
+                else:
+                    table.append_row([queue])
+            return str(table)
+
+
+    def create_queue_cli(self, queues, silent=False):
+        '''Handles the command-line sub-command create'''
+
+        log.info('Creating queue(s) {}'.format(', '.join(queues)))
+
+        # get existing queue names
+        existing_queues = self.list_queues()
+
+        # create the queues
+        created_queues = 0
+        for queue in queues.split(','):
+
+            # skip empty queue names
+            if not queue:
+                continue
+
+            # if it already exists
+            if queue in existing_queues:
+                if not silent:
+                    print("Already existing: {}".format(queue))
+
+            else:
+                if self.create_queue(queue):
+                    if not silent:
+                        print("Created new queue: {}".format(queue))
+                    created_queues += 1
+                    existing_queues.append(queue)
+        
+        if not silent:
+            print('Created {} new queues'.format(created_queues))
+
+
+
+    def delete_queue_cli(self, queues, silent=False):
+        '''Handles the command-line sub-command delete'''
+
+        log.info('Deleting queue(s) {}'.format(', '.join(queues)))
+
+        # get existing queue names
+        existing_queues = self.list_queues()
+
+        # create the queues
+        deleted_queues = 0
+        for queue in queues.split(','):
+
+            # skip empty queue names
+            if not queue:
+                continue
+
+            # if it doesn't exists
+            if queue not in existing_queues:
+                if not silent:
+                    print("Queue not existing: {}".format(queue))
+
+            else:
+                if self.delete_queue(queue):
+                    if not silent:
+                        print("Deleted queue: {}".format(queue))
+                    deleted_queues += 1
+        
+        if not silent:
+            print('Deleted {} queues'.format(deleted_queues))
+
+
+
     def delete_queue(self, queue):
         """Delete a specified queue"""
 
         log.info('Deleting queue {}'.format(queue))
+
+        # gee, don't want to mess this up, do we..
+        # remove all ddmq files from the work folder if it exists
+        try:
+            for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*'):
+                os.remove(os.path.join(self.root, queue, 'work', msg))
+            # remove the work dir itself
+            os.rmdir(os.path.join(self.root, queue, 'work'))
+        except (FileNotFoundError, OSError) as e:
+            pass
+
+        # remove all ddmq files in the queue folder
+        for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'):
+            os.remove(os.path.join(self.root, queue, msg))
+        
+        # remove the queue settings file if existing
+        try:
+            os.remove(os.path.join(self.root, queue, 'ddmq.conf'))
+            os.remove(os.path.join(self.root, queue, 'ddmq.conf.intermediate'))
+        except (FileNotFoundError, OSError):
+            pass
+
+        try:
+            os.rmdir(os.path.join(self.root, queue))
+        except OSError as e:
+            raise OSError('{}   Files created outside of ddmq could be in there, aborting deletion.'.format(e))
+
         return True
 
 
@@ -399,7 +579,7 @@ class ddmq:
  #  #    ##    #    #       #    #  #     # #     #    #    
 ### #     #    #    ####### #     # #     #  #####     #    
 
-    def publish(self, queue, message=None, priority=999, clean=True, requeue=False):
+    def publish(self, queue, message=None, priority=None, clean=True, requeue=False, timeout=None):
         """Publish a message to a queue"""
 
         log.info('Publishing message to {}'.format(queue))
@@ -415,13 +595,16 @@ class ddmq:
         if not message:
             message = ''
 
+        # check if priority is not set
+        if not priority:
+            priority = 999
         # if it is set, make sure it't not negative
         else:
             if priority < 0:
                 raise ValueError('Warning, priority set to less than 0 (priority={}). Negative numbers will be sorted in the wrong order when working with messages.'.format(priority))
 
         # init a new message object
-        msg = Message(message=message, queue=queue, priority=priority, timestamps=[time.time()], requeue=requeue)
+        msg = Message(message=message, queue=queue, priority=priority, timestamps=[time.time()], requeue=requeue, timeout=timeout)
 
         # get the next queue number
         msg.queue_number = self.get_queue_number(queue)
@@ -452,9 +635,13 @@ class ddmq:
         if clean:
             self.clean(queue, get_queue_settings=False)
 
+        # set default value if missing
+        if not n:
+            n = 1
+
         # init
         restored_messages = []
-
+        
         # list all ddmq files in queue folder
         msg_files = sorted(fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'))[:n]
         
@@ -485,10 +672,192 @@ class ddmq:
         # return depending on how many messages are collected
         if len(restored_messages) == 0:
             return None
-        elif len(restored_messages) == 1:
-            return restored_messages[0]
         else:
             return restored_messages
+
+
+
+
+
+
+
+
+ #####  #     # ######      #       ### #     # ####### 
+#     # ##   ## #     #     #        #  ##    # #       
+#       # # # # #     #     #        #  # #   # #       
+#       #  #  # #     #     #        #  #  #  # #####   
+#       #     # #     #     #        #  #   # # #       
+#     # #     # #     #     #        #  #    ## #       
+ #####  #     # ######      ####### ### #     # ####### 
+
+
+def view():
+    '''Handle the command-line sub-command view'''
+    parser = argparse.ArgumentParser(
+        description='View available queues and number of messages.',
+        usage='''{} view [-hnvd] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+)
+    # add available options for this sub-command
+    parser.add_argument('root', help="the message queue's root folder", type=str)
+    parser.add_argument('queue', nargs='?', help="name of specific queue(s) to view", type=str)
+    parser.add_argument('-n', action='store_true', help="only print the name of queues")
+    parser.add_argument('-j', action='store_true', help="format response as JSON")
+    parser.add_argument('-v', action='store_true', help="verbose mode")
+    parser.add_argument('-d', action='store_true', help="debug mode")
+
+
+    # now that we're inside a subcommand, ignore the first two arguments
+    args = parser.parse_args(sys.argv[2:])
+
+    # create a ddmq object
+    mq = ddmq(root=args.root, verbose=args.v, debug=args.d)
+
+    # call the view_cli function with the given arguments
+    print(mq.view_cli(format_json=args.j, only_names=args.n, filter_queues=args.queue))
+
+
+
+def create():
+    '''Handle the command-line sub-command create'''
+    parser = argparse.ArgumentParser(
+        description='Create queue(s).',
+        usage='''{} create [-hfvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+)
+    # add available options for this sub-command
+    parser.add_argument('root', help="the message queue's root folder", type=str)
+    parser.add_argument('queue', help="comma-separated names of specific queue(s) to create", type=str)
+    parser.add_argument('-f', action='store_true', help="create the root folder if needed")
+    parser.add_argument('-v', action='store_true', help="verbose mode")
+    parser.add_argument('-d', action='store_true', help="debug mode")
+    parser.add_argument('-s', action='store_true', help="silent mode")
+
+
+    # now that we're inside a subcommand, ignore the first two arguments
+    args = parser.parse_args(sys.argv[2:])
+
+    # create a ddmq object
+    mq = ddmq(root=args.root, create=args.f, verbose=args.v, debug=args.d)
+
+    # call the create_queue_cli function with the given arguments
+    mq.create_queue_cli(queues=args.queue, silent=args.s)
+
+
+def delete():
+    '''Handle the command-line sub-command delete'''
+    parser = argparse.ArgumentParser(
+        description='Delete queue(s).',
+        usage='''{} delete [-hnvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+)
+    # add available options for this sub-command
+    parser.add_argument('root', help="the message queue's root folder", type=str)
+    parser.add_argument('queue', help="comma-separated names of specific queue(s) to delete", type=str)
+    parser.add_argument('-v', action='store_true', help="verbose mode")
+    parser.add_argument('-d', action='store_true', help="debug mode")
+    parser.add_argument('-s', action='store_true', help="silent mode")
+
+
+    # now that we're inside a subcommand, ignore the first two arguments
+    args = parser.parse_args(sys.argv[2:])
+
+    # create a ddmq object
+    mq = ddmq(root=args.root, verbose=args.v, debug=args.d)
+
+    # call the create_queue_cli function with the given arguments
+    mq.delete_queue_cli(queues=args.queue, silent=args.s)
+
+
+def publish():
+    '''Handle the command-line sub-command publish'''
+    parser = argparse.ArgumentParser(
+        description='Publish message to a queue.',
+        usage='''{} publish [-hfrCvds] [-p <int>] [-t <int>] <root> <queue> "<message>"'''.format(sys.argv[0])
+)
+    # add available options for this sub-command
+    parser.add_argument('root', help="the message queue's root folder", type=str)
+    parser.add_argument('queue', help="name of queue to publish to", type=str)
+    parser.add_argument('message', help="message text within quotes", type=str)
+    parser.add_argument('-f', action='store_true', help="create the root folder and queue if needed")
+    parser.add_argument('-p', '--priority', nargs='?', help="define priority of the message (lower number = higer priority)", type=int)
+    parser.add_argument('-t', '--timeout', nargs='?', help="define timeout of the message in seconds", type=int)
+    parser.add_argument('-r', '--requeue', action='store_true', help="set to requeue message on fail or timeout")
+    parser.add_argument('-C', '--skip-cleaning', action='store_true', help="set to publish the message to the queue without doing cleaning of the queue first")
+    parser.add_argument('-v', action='store_true', help="verbose mode")
+    parser.add_argument('-d', action='store_true', help="debug mode")
+    parser.add_argument('-s', action='store_true', help="silent mode")
+
+
+    # now that we're inside a subcommand, ignore the first two arguments
+    args = parser.parse_args(sys.argv[2:])
+
+    if args.skip_cleaning:
+        if not args.s:
+            print("Skipping queue cleaning.")
+
+    # create a ddmq object
+    mq = ddmq(root=args.root, create=args.f, verbose=args.v, debug=args.d)
+
+    # call the publish function with the given arguments
+    msg = mq.publish(queue=args.queue, message=args.message, priority=args.priority, clean=args.skip_cleaning, requeue=args.requeue, timeout=args.timeout)
+
+    if not args.s:
+        print("Successfully published message:\n\n{}".format(msg))
+
+
+
+
+
+
+def consume():
+    '''Handle the command-line sub-command consume'''
+    parser = argparse.ArgumentParser(
+        description='Consume message(s) from queue.',
+        usage='''{} consume [-hnvd] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+)
+    # add available options for this sub-command
+    parser.add_argument('root', help="the message queue's root folder")
+    parser.add_argument('queue', help="comma-separated names of specific queue(s) to delete")
+    parser.add_argument('-n', nargs='?', help="the number of messages that will be consumed", type=int)
+    parser.add_argument('-f', '--format', nargs='?', help="specify output format (plain, json, yaml)", default='json', type=str)
+    parser.add_argument('-C', '--skip-cleaning', action='store_true', help="set to publish the message to the queue without doing cleaning of the queue first")
+    parser.add_argument('-v', action='store_true', help="verbose mode")
+    parser.add_argument('-d', action='store_true', help="debug mode")
+
+
+    # now that we're inside a subcommand, ignore the first two arguments
+    args = parser.parse_args(sys.argv[2:])
+
+    if args.format:
+        if args.format not in ['plain', 'json', 'yaml']:
+            raise ValueError("Unknown format, {}. Valid formats are plain, json and yaml.")
+
+    # create a ddmq object
+    mq = ddmq(root=args.root, verbose=args.v, debug=args.d)
+
+    # call the create_queue_cli function with the given arguments
+    messages = mq.consume(queue=args.queue, n=args.n, clean=args.skip_cleaning)
+
+    if not messages:
+        print("No more messages in {}".format(args.queue))
+        return
+
+    # print the messages in requested format
+    for msg in messages:
+
+        # Tracer()()
+
+        if args.format == 'json':
+            print(json.dumps(msg.__dict__))
+        elif args.format == 'plain':
+            print(str(msg)+'\n')
+        elif args.format == 'yaml':
+            print(yaml.dump(msg.__dict__))
+        else:
+            # should not happen
+            print(json.dumps(msg))
+
+
+
+
 
 
 
@@ -507,81 +876,33 @@ class ddmq:
 if __name__ == "__main__":
     """Run the queue in a command-line mode"""
 
-    verbose = True
-    if verbose:
-        log.basicConfig(format="%(levelname)s:\t%(message)s", level=log.DEBUG)
-        log.debug("Verbose output.")
-    else:
-        log.basicConfig(format="%(levelname)s:\t%(message)s")
-
-    root_folder = sys.argv[1]
-    ddmq = ddmq(root_folder, create=True)
-    msg = ddmq.publish('testmq','testmessage', requeue=True)
-    print(msg,'\n')
-    # Tracer()()
-
-    msg = ddmq.consume('testmq', 5)
-    
-    print(msg)
-
-    # Tracer()()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    sys.exit()
     parser = argparse.ArgumentParser(
-        description='Pretends to be git',
-        usage='''git <command> [<args>]
+        description='Command-line interface to ddmq.',
+        usage='''{} <command> [<args>]
 
-The most commonly used git commands are:
-list     List queues and number of messages
-create    Download objects and refs from another repository
-remove
+The available commands are:
+view      List queues and number of messages
+create    Create a queue
+delete
 purge
 search
-''')
+'''.format(sys.argv[0]))
+    # Tracer()()
     parser.add_argument('command', help='Subcommand to run')
     # parse_args defaults to [1:] for args, but you need to
     # exclude the rest of the args too, or validation will fail
     args = parser.parse_args(sys.argv[1:2])
-    if not hasattr(self, args.command):
+    if not inspect.isfunction(eval(args.command)):
         print('Unrecognized command')
         parser.print_help()
         exit(1)
+
+    # Tracer()()
     # use dispatch pattern to invoke method with same name
-    getattr(self, args.command)()
+    eval(args.command)()
 
-    def commit(self):
-        parser = argparse.ArgumentParser(
-            description='Record changes to the repository')
-        # prefixing the argument with -- means it's optional
-        parser.add_argument('--amend', action='store_true')
-        # now that we're inside a subcommand, ignore the first
-        # TWO argvs, ie the command (git) and the subcommand (commit)
-        args = parser.parse_args(sys.argv[2:])
-        print('Running git commit, amend={}'.format(args.amend))
-
-    def fetch(self):
-        parser = argparse.ArgumentParser(
-            description='Download objects and refs from another repository')
-        # NOT prefixing the argument with -- means it's not optional
-        parser.add_argument('repository')
-        args = parser.parse_args(sys.argv[2:])
-        print('Running git fetch, repository={}'.format(args.repository))
-
+    
 
