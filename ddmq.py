@@ -240,7 +240,7 @@ class ddmq:
                 messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*')
             else:
                 # raise an error otherwise
-                raise FileNotFoundError(e)
+                raise FileNotFoundError("Unable to read from the queue folder: {}".format(e))
 
         # for each message file        
         for msg_filename in messages:
@@ -329,7 +329,7 @@ class ddmq:
         return messages, work_messages
 
 
-    def view_cli(self, format_json=True, only_names=True, filter_queues=None):
+    def view_cli(self, format=None, only_names=True, filter_queues=None):
         '''Handles the command-line sub-command view'''
         
         # get queue names
@@ -353,11 +353,16 @@ class ddmq:
                 msgs = self.get_message_list(queue)
                 queues[queue] = [len(msgs[0]), len(msgs[1])]
 
-        # if the answer is to be formatted as JSON
-        if format_json:
+        # print in the requested format
+        if format not in ['plain', 'json', 'yaml'] and format is not None:
+            raise ValueError("Unknown format, {}. Valid formats are plain, json and yaml.")
+
+        if format == 'json':
             return json.dumps(queues)
 
-        # make it beautiful
+        elif format == 'yaml':
+            return yaml.dump(queues)
+
         else:
             table = BeautifulTable()
             if not only_names:
@@ -413,7 +418,7 @@ class ddmq:
         # get existing queue names
         existing_queues = self.list_queues()
 
-        # create the queues
+        # delete the queues
         deleted_queues = 0
         for queue in queues.split(','):
 
@@ -498,11 +503,53 @@ class ddmq:
         return True
 
 
+    def purge_queue_cli(self, queues, silent=False):
+        """Handles the command-line sub-command purge"""
+
+        log.info('Purging queue(s) {}'.format(', '.join(queues)))
+
+        # get existing queue names
+        existing_queues = self.list_queues()
+
+        # purge the queues
+        purged_queues = 0
+        for queue in queues.split(','):
+
+            # skip empty queue names
+            if not queue:
+                continue
+
+            # if it doesn't exists
+            if queue not in existing_queues:
+                if not silent:
+                    print("Queue not existing: {}".format(queue))
+
+            else:
+                if self.purge_queue(queue):
+                    if not silent:
+                        print("Purged queue: {}".format(queue))
+                    purged_queues += 1
+        
+        if not silent:
+            print('Purged {} queues'.format(purged_queues))
+            
+            
     def purge_queue(self, queue):
         """Purge the specified queue"""
 
         log.info('Purging {}'.format(queue))
 
+        # remove all ddmq files from the work folder if it exists
+        try:
+            for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*'):
+                os.remove(os.path.join(self.root, queue, 'work', msg))
+        except (FileNotFoundError, OSError) as e:
+            pass
+
+        # remove all ddmq files in the queue folder
+        for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'):
+            os.remove(os.path.join(self.root, queue, msg))
+        
         return True
 
 
@@ -540,7 +587,17 @@ class ddmq:
         log.debug('Generating next queue number in {}'.format(queue))
 
         # list all files in queue folder
-        messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
+        try:
+            messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
+        except (FileNotFoundError, OSError) as e:
+            # try creating the queue if asked to
+            if self.create:
+                self.create_folder(os.path.join(self.root, queue))
+                self.create_folder(os.path.join(self.root, queue, 'work'))
+                messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
+            else:
+                # raise an error otherwise
+                raise FileNotFoundError("Unable to read from the queue folder: {}".format(e))
         
         # init
         max_queue_number = 0
@@ -695,13 +752,13 @@ def view():
     '''Handle the command-line sub-command view'''
     parser = argparse.ArgumentParser(
         description='View available queues and number of messages.',
-        usage='''{} view [-hnvd] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+        usage='''{} view [-hnjvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder", type=str)
     parser.add_argument('queue', nargs='?', help="name of specific queue(s) to view", type=str)
     parser.add_argument('-n', action='store_true', help="only print the name of queues")
-    parser.add_argument('-j', action='store_true', help="format response as JSON")
+    parser.add_argument('--format', nargs='?', help="specify output format (plain, json, yaml)", default='plain', type=str)
     parser.add_argument('-v', action='store_true', help="verbose mode")
     parser.add_argument('-d', action='store_true', help="debug mode")
 
@@ -713,7 +770,7 @@ def view():
     mq = ddmq(root=args.root, verbose=args.v, debug=args.d)
 
     # call the view_cli function with the given arguments
-    print(mq.view_cli(format_json=args.j, only_names=args.n, filter_queues=args.queue))
+    print(mq.view_cli(format=args.format, only_names=args.n, filter_queues=args.queue))
 
 
 
@@ -746,7 +803,7 @@ def delete():
     '''Handle the command-line sub-command delete'''
     parser = argparse.ArgumentParser(
         description='Delete queue(s).',
-        usage='''{} delete [-hnvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+        usage='''{} delete [-hvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder", type=str)
@@ -780,7 +837,7 @@ def publish():
     parser.add_argument('-p', '--priority', nargs='?', help="define priority of the message (lower number = higer priority)", type=int)
     parser.add_argument('-t', '--timeout', nargs='?', help="define timeout of the message in seconds", type=int)
     parser.add_argument('-r', '--requeue', action='store_true', help="set to requeue message on fail or timeout")
-    parser.add_argument('-C', '--skip-cleaning', action='store_true', help="set to publish the message to the queue without doing cleaning of the queue first")
+    parser.add_argument('-C', '--skip-cleaning', action='store_false', help="set to publish the message to the queue without doing cleaning of the queue first")
     parser.add_argument('-v', action='store_true', help="verbose mode")
     parser.add_argument('-d', action='store_true', help="debug mode")
     parser.add_argument('-s', action='store_true', help="silent mode")
@@ -795,7 +852,7 @@ def publish():
 
     # create a ddmq object
     mq = ddmq(root=args.root, create=args.f, verbose=args.v, debug=args.d)
-
+    
     # call the publish function with the given arguments
     msg = mq.publish(queue=args.queue, message=args.message, priority=args.priority, clean=args.skip_cleaning, requeue=args.requeue, timeout=args.timeout)
 
@@ -811,14 +868,14 @@ def consume():
     '''Handle the command-line sub-command consume'''
     parser = argparse.ArgumentParser(
         description='Consume message(s) from queue.',
-        usage='''{} consume [-hnvd] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+        usage='''{} consume [-hnCvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder")
     parser.add_argument('queue', help="comma-separated names of specific queue(s) to delete")
     parser.add_argument('-n', nargs='?', help="the number of messages that will be consumed", type=int)
-    parser.add_argument('-f', '--format', nargs='?', help="specify output format (plain, json, yaml)", default='json', type=str)
-    parser.add_argument('-C', '--skip-cleaning', action='store_true', help="set to publish the message to the queue without doing cleaning of the queue first")
+    parser.add_argument('--format', nargs='?', help="specify output format (plain, json, yaml)", default='json', type=str)
+    parser.add_argument('-C', '--skip-cleaning', action='store_false', help="set to publish the message to the queue without doing cleaning of the queue first")
     parser.add_argument('-v', action='store_true', help="verbose mode")
     parser.add_argument('-d', action='store_true', help="debug mode")
 
@@ -858,6 +915,30 @@ def consume():
 
 
 
+def purge():
+    '''Handle the command-line sub-command purge'''
+    parser = argparse.ArgumentParser(
+        description='Purge queue(s).',
+        usage='''{} purge [-hvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+)
+    # add available options for this sub-command
+    parser.add_argument('root', help="the message queue's root folder", type=str)
+    parser.add_argument('queue', help="comma-separated names of specific queue(s) to delete", type=str)
+    parser.add_argument('-v', action='store_true', help="verbose mode")
+    parser.add_argument('-d', action='store_true', help="debug mode")
+    parser.add_argument('-s', action='store_true', help="silent mode")
+
+
+    # now that we're inside a subcommand, ignore the first two arguments
+    args = parser.parse_args(sys.argv[2:])
+
+    # create a ddmq object
+    mq = ddmq(root=args.root, verbose=args.v, debug=args.d)
+
+    # call the create_queue_cli function with the given arguments
+    mq.purge_queue_cli(queues=args.queue, silent=args.s)
+
+
 
 
 
@@ -886,9 +967,10 @@ if __name__ == "__main__":
 The available commands are:
 view      List queues and number of messages
 create    Create a queue
-delete
-purge
-search
+delete    Delete a queue
+publish   Publish message to queue
+consume   Consume message from queue
+purge     Purge all messages from queue
 '''.format(sys.argv[0]))
     # Tracer()()
     parser.add_argument('command', help='Subcommand to run')
