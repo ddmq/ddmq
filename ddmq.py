@@ -307,7 +307,7 @@ class ddmq:
 
             # save directories
             queues.append(queue)
-
+        
         return queues
 
 
@@ -345,7 +345,7 @@ class ddmq:
                     queues.append(queue)
 
         log.info('Viewing queue(s) {}'.format(', '.join(queues)))
-
+        
         # if number of messages are to be returned as well
         if not only_names:
             queues = dict((key,[0,0]) for key in queues)
