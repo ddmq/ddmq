@@ -23,105 +23,13 @@ import inspect
 
 # import extra modules
 import yaml
+import message
 from IPython.core.debugger import Tracer
 
-version = "0.8"
+version = "0.8.2"
 
 
-
-
-#     # #######  #####   #####     #     #####  ####### 
-##   ## #       #     # #     #   # #   #     # #       
-# # # # #       #       #        #   #  #       #       
-#  #  # #####    #####   #####  #     # #  #### #####   
-#     # #             #       # ####### #     # #       
-#     # #       #     # #     # #     # #     # #       
-#     # #######  #####   #####  #     #  #####  ####### 
-
-class Message:
-    """Class to represent a single message"""
-
-
-    def __init__(self, message=None, queue=None, timestamps=None, timeout=None, id=None, priority=None, queue_number=None, filename=None, requeue=None):
-        """Initialize a message with the given parameters"""
-
-        log.debug('Initializing Message object')
-
-        self.message = message
-        self.queue = queue
-        self.timestamps = timestamps
-        self.timeout = timeout
-        self.id = id
-        self.priority = priority
-        self.queue_number = queue_number
-        self.filename = filename
-        self.requeue = requeue
-
-
-    @classmethod
-    def json2msg(self, package):
-        """Converty a JSON object to a Message object"""
-
-        log.debug('Creating a Message object from a JSON string')
-
-        # if the package is a string, convert to dict
-        if type(package) is str:
-            package = json.loads(package)
-
-        # create a new empty message and update its values
-        new_msg = Message()
-        new_msg.__dict__.update(package)
-        return new_msg
-
-
-    def msg2json(self):
-        """Convert a Message object to a JSON object"""
-
-        log.debug('Creating a JSON string from a Message object')
-
-        return json.dumps(self.__dict__)
-
-    
-    def update(self, package):
-        """Update a Message object with the parameters supplied by the package (dict)"""
-
-        log.debug('Updating a Message object')
-
-        self.__dict__.update(package)
-
-
-    def __repr__(self):
-        """Print the values of a Message object"""
-
-        log.debug('Printing a Message object')
-
-        # go throguh the variables and collect their names and values
-        text = ""
-        for key,val in sorted(self.__dict__.items()):
-            text += '{} = {}\n'.format(key,val)
-        return text.rstrip()
-
-
-
-
-
-
-
-
-
-
-
-
-
-######  ######  #     #  #####  
-#     # #     # ##   ## #     # 
-#     # #     # # # # # #     # 
-#     # #     # #  #  # #     # 
-#     # #     # #     # #   # # 
-#     # #     # #     # #    #  
-######  ######  #     #  #### # 
-
-class ddmq:
+class broker:
     """Class to interact with messageing queues"""
 
     # default queue settings
@@ -129,7 +37,7 @@ class ddmq:
 
 
     def __init__(self, root, create=False, verbose=False, debug=False):
-        """Initialize a ddmq object at a specified root directory. If the create flag is set to True it will create the directories needed if they are missing"""
+        """Initialize a broker object at a specified root directory. If the create flag is set to True it will create the directories needed if they are missing"""
 
         # logging
         if verbose:
@@ -138,7 +46,7 @@ class ddmq:
         if debug:
             log.basicConfig(format="%(levelname)s:\t%(message)s", level=log.DEBUG)
             log.debug("Debug output.")
-        log.debug('Initializing ddmq object')
+        log.debug('Initializing broker object')
 
         self.create = create
         self.root = root
@@ -250,7 +158,7 @@ class ddmq:
 
             # load the message from the file
             with open(msg_filepath, 'r') as msg_handle:
-                msg = Message.json2msg(json.load(msg_handle))
+                msg = message.json2msg(json.load(msg_handle))
 
             # handle messages that have expired
             msg_expiry_time = int(msg_filename.split('.')[0])
@@ -689,7 +597,7 @@ class ddmq:
                 raise ValueError('Warning, priority set to less than 0 (priority={}). Negative numbers will be sorted in the wrong order when working with messages.'.format(priority))
 
         # init a new message object
-        msg = Message(message=message, queue=queue, priority=priority, timestamps=[time.time()], requeue=requeue, timeout=timeout)
+        msg = message(message=message, queue=queue, priority=priority, timestamps=[time.time()], requeue=requeue, timeout=timeout)
 
         # get the next queue number
         msg.queue_number = self.get_queue_number(queue)
@@ -740,7 +648,7 @@ class ddmq:
 
             # load the message from the file
             with open(msg_filepath, 'r') as msg_handle:
-                msg = Message.json2msg(json.load(msg_handle))
+                msg = message.json2msg(json.load(msg_handle))
             
             # create the new path to the file in the work folder
             if msg.timeout:
@@ -797,11 +705,11 @@ def view():
     # now that we're inside a subcommand, ignore the first two arguments
     args = parser.parse_args(sys.argv[2:])
 
-    # create a ddmq object
-    mq = ddmq(root=args.root, verbose=args.v, debug=args.d)
+    # create a broker object
+    broker = broker(root=args.root, verbose=args.v, debug=args.d)
 
     # call the view_cli function with the given arguments
-    print(mq.view_cli(format=args.format, only_names=args.n, filter_queues=args.queue))
+    print(broker.view_cli(format=args.format, only_names=args.n, filter_queues=args.queue))
 
 
 
@@ -823,11 +731,11 @@ def create():
     # now that we're inside a subcommand, ignore the first two arguments
     args = parser.parse_args(sys.argv[2:])
 
-    # create a ddmq object
-    mq = ddmq(root=args.root, create=args.f, verbose=args.v, debug=args.d)
+    # create a broker object
+    broker = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
 
     # call the create_queue_cli function with the given arguments
-    mq.create_queue_cli(queues=args.queue, silent=args.s)
+    broker.create_queue_cli(queues=args.queue, silent=args.s)
 
 
 def delete():
@@ -847,11 +755,11 @@ def delete():
     # now that we're inside a subcommand, ignore the first two arguments
     args = parser.parse_args(sys.argv[2:])
 
-    # create a ddmq object
-    mq = ddmq(root=args.root, verbose=args.v, debug=args.d)
+    # create a broker object
+    broker = broker(root=args.root, verbose=args.v, debug=args.d)
 
     # call the create_queue_cli function with the given arguments
-    mq.delete_queue_cli(queues=args.queue, silent=args.s)
+    broker.delete_queue_cli(queues=args.queue, silent=args.s)
 
 
 def publish():
@@ -881,11 +789,11 @@ def publish():
         if not args.s:
             print("Skipping queue cleaning.")
 
-    # create a ddmq object
-    mq = ddmq(root=args.root, create=args.f, verbose=args.v, debug=args.d)
+    # create a broker object
+    broker = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
     
     # call the publish function with the given arguments
-    msg = mq.publish(queue=args.queue, message=args.message, priority=args.priority, clean=args.skip_cleaning, requeue=args.requeue, timeout=args.timeout)
+    msg = broker.publish(queue=args.queue, message=args.message, priority=args.priority, clean=args.skip_cleaning, requeue=args.requeue, timeout=args.timeout)
 
     if not args.s:
         print("Successfully published message:\n\n{}".format(msg))
@@ -918,11 +826,11 @@ def consume():
         if args.format not in ['plain', 'json', 'yaml']:
             raise ValueError("Unknown format, {}. Valid formats are plain, json and yaml.")
 
-    # create a ddmq object
-    mq = ddmq(root=args.root, verbose=args.v, debug=args.d)
+    # create a broker object
+    broker = broker(root=args.root, verbose=args.v, debug=args.d)
 
     # call the create_queue_cli function with the given arguments
-    messages = mq.consume(queue=args.queue, n=args.n, clean=args.skip_cleaning)
+    messages = broker.consume(queue=args.queue, n=args.n, clean=args.skip_cleaning)
 
     if not messages:
         print("No more messages in {}".format(args.queue))
@@ -963,11 +871,11 @@ def purge():
     # now that we're inside a subcommand, ignore the first two arguments
     args = parser.parse_args(sys.argv[2:])
 
-    # create a ddmq object
-    mq = ddmq(root=args.root, verbose=args.v, debug=args.d)
+    # create a broker object
+    broker = broker(root=args.root, verbose=args.v, debug=args.d)
 
     # call the create_queue_cli function with the given arguments
-    mq.purge_queue_cli(queues=args.queue, silent=args.s)
+    broker.purge_queue_cli(queues=args.queue, silent=args.s)
 
 
 
