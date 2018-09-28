@@ -23,7 +23,6 @@ import inspect
 
 # import extra modules
 import yaml
-from beautifultable import BeautifulTable
 from IPython.core.debugger import Tracer
 
 
@@ -364,17 +363,38 @@ class ddmq:
             return yaml.dump(queues)
 
         else:
-            table = BeautifulTable()
-            if not only_names:
-                table.column_headers = ["Queue", "msg in queue", "msg at work"]
-            else:
-                table.column_headers = ["Queue"]
-            for queue in queues:
+
+            # try using beautifultables if it is installed
+            try:
+                from beautifultable import BeautifulTable
+
+                table = BeautifulTable()
                 if not only_names:
-                    table.append_row([queue, queues[queue][0], queues[queue][1]])
+                    table.column_headers = ["Queue", "msg in queue", "msg at work"]
                 else:
-                    table.append_row([queue])
+                    table.column_headers = ["Queue"]
+                for queue in queues:
+                    if not only_names:
+                        table.append_row([queue, queues[queue][0], queues[queue][1]])
+                    else:
+                        table.append_row([queue])
+
+            # otherwise fall back to ugly table
+            except ImportError:
+
+                table = ""
+                if not only_names:
+                    table += "Queue\t\t\tmsg in queue\tmsg at work\n"
+                else:
+                    table += "Queue\n"
+                for queue in queues:
+                    if not only_names:
+                        table += "{}\t\t\t{}\t\t{}\n".format(queue, queues[queue][0], queues[queue][1])
+                    else:
+                        table += "{}\n".format(queue)
+
             return str(table)
+
 
 
     def create_queue_cli(self, queues, silent=False):
