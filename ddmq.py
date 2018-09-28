@@ -25,6 +25,7 @@ import inspect
 import yaml
 from IPython.core.debugger import Tracer
 
+version = "0.8"
 
 
 
@@ -239,7 +240,7 @@ class ddmq:
                 messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*')
             else:
                 # raise an error otherwise
-                raise FileNotFoundError("Unable to read from the queue folder: {}".format(e))
+                raise FileNotFoundError("Queue missing: unable to read from the queue work folder: {}".format(os.path.join(self.root, queue, 'work')))
 
         # for each message file        
         for msg_filename in messages:
@@ -316,7 +317,10 @@ class ddmq:
         log.debug('Listing messages in queue {}'.format(queue))
         
         # list all files in queue folder
-        messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
+        try:
+            messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
+        except (FileNotFoundError, OSError) as e:
+            messages = []
 
         # list all files in queue work folder
         try:
@@ -347,7 +351,11 @@ class ddmq:
         
         # if number of messages are to be returned as well
         if not only_names:
+
+            # initialize for all queues
             queues = dict((key,[0,0]) for key in queues)
+
+            # fetch the number of messages
             for queue in queues.keys():
                 msgs = self.get_message_list(queue)
                 queues[queue] = [len(msgs[0]), len(msgs[1])]
@@ -720,7 +728,10 @@ class ddmq:
         restored_messages = []
         
         # list all ddmq files in queue folder
-        msg_files = sorted(fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'))[:n]
+        try:
+            msg_files = sorted(fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'))[:n]
+        except (FileNotFoundError, OSError) as e:
+            raise FileNotFoundError("Unable to read from the queue folder: {}".format(os.path.join(self.root, queue)))
         
         for msg_filename in msg_files:
 
@@ -981,8 +992,8 @@ if __name__ == "__main__":
 
 
     parser = argparse.ArgumentParser(
-        description='Command-line interface to ddmq.',
-        usage='''{} <command> [<args>]
+        description='Command-line interface to Dead Drop Messaging Queue (ddmq).',
+        usage='''{0} <command> [<args>]
 
 The available commands are:
 view      List queues and number of messages
@@ -991,20 +1002,36 @@ delete    Delete a queue
 publish   Publish message to queue
 consume   Consume message from queue
 purge     Purge all messages from queue
+
+For more info about the commands, run
+{0} <command> -h 
+
 '''.format(sys.argv[0]))
-    # Tracer()()
-    parser.add_argument('command', help='Subcommand to run')
+    
+    parser.add_argument('command', nargs='?', help='Subcommand to run')
+    parser.add_argument('-v', '--version', action='store_true', help='print version')
+
     # parse_args defaults to [1:] for args, but you need to
     # exclude the rest of the args too, or validation will fail
     args = parser.parse_args(sys.argv[1:2])
-    if not inspect.isfunction(eval(args.command)):
-        print('Unrecognized command')
+
+    # check if only version is to be printed
+    if args.version:
+        print("ddmq version {}".format(version))
+        exit(0)
+
+    # if no commandis given
+    elif not args.command:
         parser.print_help()
         exit(1)
 
-    # Tracer()()
+    # check if there is no command given
+    elif args.command not in ['view', 'create', 'delete', 'publish', 'consume', 'purge']:
+        print("Unrecognized command: {}".format(args.command))
+        parser.print_help()
+        exit(1)
+
+
     # use dispatch pattern to invoke method with same name
     eval(args.command)()
-
-    
 
