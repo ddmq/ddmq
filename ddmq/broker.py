@@ -170,16 +170,6 @@ class broker:
         # try:
         messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*')
 
-        # except (FileNotFoundError, OSError) as e:
-        #     # try creating the queue if asked to
-        #     if self.create:
-        #         self.create_folder(os.path.join(self.root, queue))
-        #         self.create_folder(os.path.join(self.root, queue, 'work'))
-        #         messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*')
-        #     else:
-        #         # raise an error otherwise
-        #         raise FileNotFoundError("Queue missing: unable to read from the queue work folder: {}".format(os.path.join(self.root, queue, 'work')))
-
         # for each message file        
         for msg_filename in messages:
 
@@ -271,38 +261,6 @@ class broker:
         return messages, work_messages
 
 
-    def delete_queue_cli(self, queues, silent=False):
-        '''Handles the command-line sub-command delete'''
-
-        log.info('Deleting queue(s) {}'.format(', '.join(queues)))
-
-        # get existing queue names
-        existing_queues = self.list_queues()
-
-        # delete the queues
-        deleted_queues = 0
-        for queue in queues.split(','):
-
-            # skip empty queue names
-            if not queue:
-                continue
-
-            # if it doesn't exists
-            if queue not in existing_queues:
-                if not silent:
-                    print("Queue not existing: {}".format(queue))
-
-            else:
-                if self.delete_queue(queue):
-                    if not silent:
-                        print("Deleted queue: {}".format(queue))
-                    deleted_queues += 1
-        
-        if not silent:
-            print('Deleted {} queues'.format(deleted_queues))
-
-
-
     def delete_queue(self, queue):
         """Delete a specified queue"""
 
@@ -365,37 +323,6 @@ class broker:
         return True
 
 
-    def purge_queue_cli(self, queues, silent=False):
-        """Handles the command-line sub-command purge"""
-
-        log.info('Purging queue(s) {}'.format(', '.join(queues)))
-
-        # get existing queue names
-        existing_queues = self.list_queues()
-
-        # purge the queues
-        purged_queues = 0
-        for queue in queues.split(','):
-
-            # skip empty queue names
-            if not queue:
-                continue
-
-            # if it doesn't exists
-            if queue not in existing_queues:
-                if not silent:
-                    print("Queue not existing: {}".format(queue))
-
-            else:
-                if self.purge_queue(queue):
-                    if not silent:
-                        print("Purged queue: {}".format(queue))
-                    purged_queues += 1
-        
-        if not silent:
-            print('Purged {} queues'.format(purged_queues))
-            
-            
     def purge_queue(self, queue):
         """Purge the specified queue"""
 
@@ -659,9 +586,6 @@ def view():
     except OSError:
         sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
 
-    # call the view_cli function with the given arguments
-    # print(brokerObj.view_cli(format=args.format, only_names=args.n, filter_queues=args.queue))
-
     # readability
     print_format = args.format
     only_names = args.n
@@ -777,9 +701,6 @@ def create():
     except OSError:
         sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
 
-    # call the create_queue_cli function with the given arguments
-    # brokerObj.create_queue_cli(queues=args.queue, silent=args.s)
-
     # readability
     queues = args.queue
     silent = args.s
@@ -846,9 +767,6 @@ def delete():
         sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
     except OSError:
         sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
-
-    # call the create_queue_cli function with the given arguments
-    # brokerObj.delete_queue_cli(queues=args.queue, silent=args.s)
 
     # readability
     queues = args.queue
@@ -1039,9 +957,6 @@ def purge():
         sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
     except OSError:
         sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
-
-    # call the create_queue_cli function with the given arguments
-    # brokerObj.purge_queue_cli(queues=args.queue, silent=args.s)
 
     # readability
     queues = args.queue
