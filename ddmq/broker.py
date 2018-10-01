@@ -196,7 +196,7 @@ class broker:
 
                 # requeue if it should be
                 if msg.requeue:
-                    self.publish(queue=msg.queue, message=msg.message, priority=msg.priority, requeue=msg.requeue, clean=False)
+                    self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, clean=False)
 
                 # then delete the old message file
                 os.remove(os.path.join(self.root, queue, 'work', msg_filename))
