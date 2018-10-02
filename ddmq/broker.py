@@ -1085,7 +1085,7 @@ def purge(json_payload=False):
 
 
 def json_payload():
-
+    """Handle the command-line sub-command json"""
     try:
         # read the payload
         payload = json.loads(sys.argv[2])
