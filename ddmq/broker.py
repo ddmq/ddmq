@@ -1,4 +1,37 @@
 #! /usr/bin/env python
+"""
+Defines the broker class which can interact with a ddmq directory.
+You define a broker by supplying at least a root directory, for example
+
+>>> b = broker('../temp/ddmq', create=True)
+>>> print(b)
+create = True
+root = ../temp/ddmq
+
+>>> b.publish('queue_name', "Hello World!")
+filename = queue_name/999.2.ddmq9d434e370e984ffbabf7455df4acf605
+id = 9d434e370e984ffbabf7455df4acf605
+message = Hello World!
+priority = 999
+queue = queue_name
+queue_number = 2
+requeue = False
+timeout = None
+
+>>> msg = b.consume('queue_name')
+[filename = 1538484616.999.2.ddmq9d434e370e984ffbabf7455df4acf605
+id = 9d434e370e984ffbabf7455df4acf605
+message = Hello World!
+priority = 999
+queue = queue_name
+queue_number = 2
+requeue = False
+timeout = None]
+
+>>> print(msg[0].message)
+Hello World!
+
+"""
 
 # if python2
 from __future__ import print_function
@@ -31,16 +64,25 @@ import re
 # import extra modules
 import yaml
 from message import message
-from IPython.core.debugger import Tracer
 
-version = "0.8.2"
+# development
+try:
+    from IPython.core.debugger import Tracer
+except ImportError:
+    pass
+
+
+version = "0.8.3"
 
 
 class broker:
     """Class to interact with messageing queues"""
 
     # default queue settings
-    settings =  {'message_timeout': 600, 'cleaned':0}
+    settings =  {   'message_timeout': 600, 
+                    'cleaned':0,
+                    'requeue_prio': 0,
+                    }
 
 
     def __init__(self, root, create=False, verbose=False, debug=False):
@@ -76,6 +118,19 @@ class broker:
                 self.get_global_settings()
             else:
                 raise ValueError("Root dir not initiated ({}/ddmq.yaml missing).".format(root))
+
+
+
+    def __repr__(self):
+        """Print the basic options of the broker object"""
+
+        log.debug('Printing a broker object')
+
+        # go throguh the variables and collect their names and values
+        text = ""
+        for key,val in sorted(self.__dict__.items()):
+            text += '{} = {}\n'.format(key,val)
+        return text.rstrip()
         
 
 
@@ -170,22 +225,35 @@ class broker:
         # try:
         messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*')
 
-        # for each message file        
+        # for each message file
         for msg_filename in messages:
-
-            # construct the file path
-            msg_filepath = os.path.join(self.root, queue, 'work', msg_filename)
-
-            # load the message from the file
-            with open(msg_filepath, 'r') as msg_handle:
-                msg = message.json2msg(json.load(msg_handle))
 
             # handle messages that have expired
             msg_expiry_time = int(msg_filename.split('.')[0])
             if msg_expiry_time < int(time.time()):
 
+                # construct the file path
+                msg_filepath = os.path.join(self.root, queue, 'work', msg_filename)
+
+                try:
+                    # load the message from the file
+                    with open(msg_filepath, 'r') as msg_handle:
+                        msg = message.json2msg(json.load(msg_handle))
+                except (FileNotFoundError, IOError) as e:
+                    # race conditions could cause files being removed since the listdir was run
+                    print("Warning: while cleaning, message file {} was missing. This could be due to another process operating on the queue at the same time. It should be pretty rare, so if it happens often it could be some other problem causing it.".format(msg_filepath))
+                    continue
+
                 # requeue if it should be
                 if msg.requeue:
+
+                    # change priority to default value
+                    msg.priority = self.settings['requeue_prio']
+
+                    # check if custom requeue prio is set
+                    if type(msg.requeue) == int:
+                        msg.priority = msg.requeue
+
                     self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, clean=False)
 
                 # then delete the old message file
@@ -444,7 +512,7 @@ class broker:
  #  #    ##    #    #       #    #  #     # #     #    #    
 ### #     #    #    ####### #     # #     #  #####     #    
 
-    def publish(self, queue, msg_text=None, priority=None, clean=True, requeue=False, timeout=None):
+    def publish(self, queue, msg_text=None, priority=None, clean=True, requeue=False, requeue_prio=None, timeout=None):
         """Publish a message to a queue"""
 
         log.info('Publishing message to {}'.format(queue))
@@ -467,6 +535,10 @@ class broker:
         else:
             if priority < 0:
                 raise ValueError('Warning, priority set to less than 0 (priority={}). Negative numbers will be sorted in the wrong order when working with messages.'.format(priority))
+
+        # check if requeue prio is set and send that value if it is
+        if requeue_prio:
+            requeue = requeue_prio
 
         # init a new message object
         msg = message(message=msg_text, queue=queue, priority=priority, timestamps=[time.time()], requeue=requeue, timeout=timeout)
@@ -518,9 +590,14 @@ class broker:
             # construct the path to the file
             msg_filepath = os.path.join(self.root, queue, msg_filename)
 
-            # load the message from the file
-            with open(msg_filepath, 'r') as msg_handle:
-                msg = message.json2msg(json.load(msg_handle))
+            try:
+                # load the message from the file
+                with open(msg_filepath, 'r') as msg_handle:
+                    msg = message.json2msg(json.load(msg_handle))
+            except (FileNotFoundError, IOError) as e:
+                # race conditions could cause files being removed since the listdir was run
+                print("Warning: while consuming, the message file {} was missing. This could be due to another process operating on the queue at the same time. It should be pretty rare, so if it happens often it could be some other problem causing it.".format(msg_filepath))
+                continue
             
             # create the new path to the file in the work folder
             if msg.timeout:
@@ -559,24 +636,26 @@ class broker:
  #####  #     # ######      ####### ### #     # ####### 
 
 
-def view():
+def view(args=None):
     '''Handle the command-line sub-command view'''
-    parser = argparse.ArgumentParser(
-        description='View available queues and number of messages.',
-        usage='''{} view [-hfnjvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
-)
-    # add available options for this sub-command
-    parser.add_argument('root', help="the message queue's root folder", type=str)
-    parser.add_argument('queue', nargs='?', help="name of specific queue(s) to view", type=str)
-    parser.add_argument('-f', action='store_true', help="create the root folder if needed")
-    parser.add_argument('-n', action='store_true', help="only print the name of queues (faster)")
-    parser.add_argument('--format', nargs='?', help="specify output format (plain, json, yaml)", default='plain', type=str)
-    parser.add_argument('-v', action='store_true', help="verbose mode")
-    parser.add_argument('-d', action='store_true', help="debug mode")
+
+    if not args:
+        parser = argparse.ArgumentParser(
+            description='View available queues and number of messages.',
+            usage='''{} view [-hfnjvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+    )
+        # add available options for this sub-command
+        parser.add_argument('root', help="the message queue's root folder", type=str)
+        parser.add_argument('queue', nargs='?', help="name of specific queue(s) to view", type=str)
+        parser.add_argument('-f', action='store_true', help="create the root folder if needed")
+        parser.add_argument('-n', action='store_true', help="only print the name of queues (faster)")
+        parser.add_argument('--format', nargs='?', help="specify output format (plain, json, yaml)", default='plain', type=str)
+        parser.add_argument('-v', action='store_true', help="verbose mode")
+        parser.add_argument('-d', action='store_true', help="debug mode")
 
 
-    # now that we're inside a subcommand, ignore the first two arguments
-    args = parser.parse_args(sys.argv[2:])
+        # now that we're inside a subcommand, ignore the first two arguments
+        args = parser.parse_args(sys.argv[2:])
 
     # create a broker object
     try:
@@ -675,7 +754,7 @@ def view():
 
 
 
-def create():
+def create(json_payload=False):
     '''Handle the command-line sub-command create'''
     parser = argparse.ArgumentParser(
         description='Create queue(s).',
@@ -742,7 +821,7 @@ def create():
         print('Created {} new queues'.format(created_queues))
 
 
-def delete():
+def delete(json_payload=False):
     '''Handle the command-line sub-command delete'''
     parser = argparse.ArgumentParser(
         description='Delete queue(s).',
@@ -804,11 +883,11 @@ def delete():
 
 
 
-def publish():
+def publish(json_payload=False):
     '''Handle the command-line sub-command publish'''
     parser = argparse.ArgumentParser(
         description='Publish message to a queue.',
-        usage='''{} publish [-hfrCvds] [-p <int>] [-t <int>] <root> <queue> "<message>"'''.format(sys.argv[0])
+        usage='''{} publish [options] <root> <queue> "<message>"'''.format(sys.argv[0])
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder", type=str)
@@ -817,8 +896,9 @@ def publish():
     parser.add_argument('-f', action='store_true', help="create the root folder and queue if needed")
     parser.add_argument('-p', '--priority', nargs='?', help="define priority of the message (lower number = higer priority)", type=int)
     parser.add_argument('-t', '--timeout', nargs='?', help="define timeout of the message in seconds", type=int)
-    parser.add_argument('-r', '--requeue', action='store_true', help="set to requeue message on fail or timeout")
-    parser.add_argument('-C', '--skip-cleaning', action='store_true', help="set to publish the message to the queue without doing cleaning of the queue first")
+    parser.add_argument('-r', '--requeue', action='store_true', help="set to requeue message on fail or timeout. Default priority is 0 (top priority) for requeued messages unless changed by --requeue_prio or config files")
+    parser.add_argument('--requeue_prio', help="set custom priority to message when it is requeued. Implies -r even if not explicitly set", type=int)
+    parser.add_argument('-C', '--skip_cleaning', action='store_true', help="set to publish the message to the queue without doing cleaning of the queue first")
     parser.add_argument('-v', action='store_true', help="verbose mode")
     parser.add_argument('-d', action='store_true', help="debug mode")
     parser.add_argument('-s', action='store_true', help="silent mode")
@@ -857,9 +937,14 @@ def publish():
         if not args.s:
             print("Skipping queue cleaning.")
 
+    # check if custom requeue prio is set
+    requeue = args.requeue
+    if args.requeue_prio:
+        requeue = True
+
     # call the publish function with the given arguments
     try:
-        msg = brokerObj.publish(queue=args.queue, msg_text=args.message, priority=args.priority, clean=args.skip_cleaning, requeue=args.requeue, timeout=args.timeout)
+        msg = brokerObj.publish(queue=args.queue, msg_text=args.message, priority=args.priority, clean=args.skip_cleaning, requeue=requeue, requeue_prio=args.requeue_prio, timeout=args.timeout)
     except IOError:
         sys.exit("Unable to write to the specified queue directory ({}).".format(os.path.join(args.root, args.queue)))
 
@@ -871,7 +956,7 @@ def publish():
 
 
 
-def consume():
+def consume(json_payload=False):
     '''Handle the command-line sub-command consume'''
     parser = argparse.ArgumentParser(
         description='Consume message(s) from queue.',
@@ -932,7 +1017,7 @@ def consume():
 
 
 
-def purge():
+def purge(json_payload=False):
     '''Handle the command-line sub-command purge'''
     parser = argparse.ArgumentParser(
         description='Purge queue(s).',
@@ -999,6 +1084,43 @@ def purge():
 
 
 
+def json_payload():
+
+    try:
+        # read the payload
+        payload = json.loads(sys.argv[2])
+    except ValueError:
+        sys.exit("Error: unable to load the JSON object")
+
+    # initiate the options with default values
+    options = { 'cmd':None,
+                'root':None,
+                'queue':None,
+                'message':None,
+                'f':False,
+                'v':False,
+                'd':False,
+                'n':False,
+                'format':'plain',
+                's':False,
+                'priority':None,
+                'timeout':None,
+                'requeue':False,
+                'requeue_prio':None,
+                'skip_cleaning':False,
+                }
+
+    # apply the payload over the defaults
+    options.update(payload)
+
+    # transfer the options to the args object
+    for key,val in options.items():
+        vars(args)[key] = val
+
+    # use dispatch pattern to invoke method with same name
+    eval(args.command)(args=args)
+
+
 
 
 
@@ -1015,9 +1137,6 @@ def purge():
 if __name__ == "__main__":
     """Run the queue in a command-line mode"""
 
-
-
-
     parser = argparse.ArgumentParser(
         description='Command-line interface to Dead Drop Messaging Queue (ddmq).',
         usage='''{0} <command> [<args>]
@@ -1029,6 +1148,7 @@ delete    Delete a queue
 publish   Publish message to queue
 consume   Consume message from queue
 purge     Purge all messages from queue
+json      Run a command packaged as a JSON object
 
 For more info about the commands, run
 {0} <command> -h 
@@ -1053,11 +1173,15 @@ For more info about the commands, run
         exit(1)
 
     # check if there is no command given
-    elif args.command not in ['view', 'create', 'delete', 'publish', 'consume', 'purge']:
+    elif args.command not in ['view', 'create', 'delete', 'publish', 'consume', 'purge', 'json']:
         print("Unrecognized command: {}".format(args.command))
         parser.print_help()
         exit(1)
 
+
+    # rename the json command to avoid name conflict with the json module
+    if args.command == 'json':
+        args.command = 'json_payload'
 
     # use dispatch pattern to invoke method with same name
     eval(args.command)()

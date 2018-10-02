@@ -1,3 +1,22 @@
+#! /usr/bin/env python
+"""
+Defines the message class which represents a single message. This class is
+primarily to be used by the methods in the broker class.
+You define a message by supplying selected arguments, for example
+
+>>> msg = message(queue='queue_name', message='Hello World!')
+>>> print(msg)
+filename = None
+id = None
+message = Hello World!
+priority = None
+queue = queue_name
+queue_number = None
+requeue = None
+timeout = None
+
+"""
+
 import json
 import logging as log
 
@@ -5,7 +24,7 @@ class message:
     """Class to represent a single message"""
 
 
-    def __init__(self, message=None, queue=None, timestamps=None, timeout=None, id=None, priority=None, queue_number=None, filename=None, requeue=None):
+    def __init__(self, queue=None, message=None, timestamps=None, timeout=None, id=None, priority=None, queue_number=None, filename=None, requeue=None):
         """Initialize a message with the given parameters"""
 
         log.debug('Initializing message object')
