@@ -4,6 +4,28 @@
    contain the root `toctree` directive.
 
 
+
+.. _intro:
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Introduction:
+
+   introduction
+
+   
+.. _submodule:
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Submodules:
+
+   message
+   broker
+   
+
+
+
 Dead Drop Messaging Queue
 =================================
 
@@ -57,26 +79,6 @@ Python Module Usage
     print(msg[0].message)
 
 
-
-
-.. _intro:
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Introduction:
-
-   introduction
-
-   
-.. _submodule:
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Submodules:
-
-   message
-   broker
-   
 
 
 
