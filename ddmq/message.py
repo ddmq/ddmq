@@ -19,6 +19,7 @@ timeout = None
 
 import json
 import logging as log
+import os
 
 class message:
     """
@@ -26,20 +27,20 @@ class message:
     """
 
 
-    def __init__(self, queue=None, message=None, timestamps=None, timeout=None, id=None, priority=None, queue_number=None, filename=None, requeue=None):
+    def __init__(self, queue=None, message=None, timeout=None, id=None, priority=None, queue_number=None, filename=None, requeue=None, requeue_counter=None, requeue_limit=None):
         """
         Initialize a message with the given parameters
         
         Args:
             queue:          name of the queue the message belongs to
             message:        the message text itself
-            timestamps:     to be removed
             timeout:        a custom timeout limit to be used when processing the message, in seconds
             id:             randomly generated uuid for the message
             priority:       a custom priority to be used when processing the message
             queue_number:   the number in the queue the message has. This number determins the order of messages with the same priority level
             filename:       file name of the file containing this message
             requeue:        if True, the message will be requeued with default priority after it expires. If set to an int, that will be used as a custom requeuing priority
+            counter         counts the number of times the message has been placed in queue. A list where the first number tells how many times the message has been processed and the second number defines how many times it should be processed at most (the default None means infinite)
 
         Returns:
             None
@@ -49,13 +50,14 @@ class message:
 
         self.message = message
         self.queue = queue
-        self.timestamps = timestamps
         self.timeout = timeout
         self.id = id
         self.priority = priority
         self.queue_number = queue_number
         self.filename = filename
         self.requeue = requeue
+        self.requeue_counter = requeue_counter
+        self.requeue_limit = requeue_limit
 
 
     @classmethod
@@ -98,7 +100,7 @@ class message:
         # go throguh the variables and collect their names and values
         text = ""
         for key,val in sorted(self.__dict__.items()):
-            text += '{} = {}\n'.format(key,val)
+            text += '{} = {}{}'.format(key,val,os.linesep)
         return text.rstrip()
 
 

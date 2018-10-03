@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import setuptools
 
-with open("README.md", "r") as fh:
+with open("README.rst", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="ddmq",
-    version="0.8.1",
+    version="0.9.2",
     author="Martin Dahlö",
     author_email="m.dahlo@gmail.com",
     description="A file based serverless messaging queue",
@@ -22,4 +22,9 @@ setuptools.setup(
     install_requires=[
         'pyyaml',
     ],
+
+    entry_points={
+        'console_scripts': ['ddmq = ddmq.broker:main',
+        ],
+    }
 )

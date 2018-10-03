@@ -9,7 +9,6 @@ Welcome to ddmq's documentation!
 .. toctree::
    :maxdepth: 2
    :caption: Submodules:
-
    broker
    message
 
@@ -34,11 +33,10 @@ Installation
 
 Command-Line Usage
 ------------------
-Run as a commandline tool or import in a python script.
 
 ::
 
-    usage: broker.py <command> [<args>]
+    usage: ddmq <command> [<args>]
 
     The available commands are:
     view      List queues and number of messages
@@ -50,7 +48,7 @@ Run as a commandline tool or import in a python script.
     json      Run a command packaged as a JSON object
 
     For more info about the commands, run
-    broker.py <command> -h 
+    ddmq <command> -h 
 
     Command-line interface to Dead Drop Messaging Queue (ddmq).
 

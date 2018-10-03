@@ -150,7 +150,7 @@ class broker:
         # go throguh the variables and collect their names and values
         text = ""
         for key,val in sorted(self.__dict__.items()):
-            text += '{} = {}\n'.format(key,val)
+            text += '{} = {}{}'.format(key,val,os.linesep)
         return text.rstrip()
         
 
@@ -262,7 +262,7 @@ class broker:
 #     # #       #       #     # #    ##  #  #    ## #     # 
  #####  ####### ####### #     # #     # ### #     #  #####  
 
-    def clean(self, queue, get_queue_settings=True):
+    def clean(self, queue, get_queue_settings=True, force=False):
         """
         Clean out expired message from a specified queue
         
@@ -271,16 +271,16 @@ class broker:
             get_queue_settings:     if True, the queue specific settings will be loaded before cleaning
 
         Returns:
-            None
+            True if everything goes according to plan, False if no cleaning was done
         """
 
         # get the queue settings
         if get_queue_settings:
             self.get_queue_settings(queue)
 
-        # only proceede if enough time as passed since last cleaning
-        if not self.settings['cleaned'] < int(time.time())-60:
-            return
+        # only proceede if enough time as passed since last cleaning, unless forced
+        if not force and (not self.settings['cleaned'] < int(time.time())-60):
+            return False
         
         log.info('Cleaning {}'.format(queue))
 
@@ -317,13 +317,18 @@ class broker:
                     if type(msg.requeue) == int:
                         msg.priority = msg.requeue
 
-                    self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, clean=False)
+                    # unless there
+                    if not msg.requeue_limit or msg.requeue_counter < msg.requeue_limit:
+                        
+                        # requeue the message
+                        self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, requeue_counter=msg.requeue_counter+1, requeue_limit=msg.requeue_limit, clean=False)
 
                 # then delete the old message file
                 os.remove(os.path.join(self.root, queue, 'work', msg_filename))
         
         # update the timestamp for when the queue was last cleaned
         self.update_settings_file(os.path.join(self.root, queue), {'cleaned':int(time.time())})
+        return True
 
 
     def clean_all(self):
@@ -390,7 +395,7 @@ class broker:
     def get_message_list(self, queue):
         """ 
         Gets a list of all messages in the specified queue
-        
+
         Args:
             queue:  name of the queue to get messages from
 
@@ -681,7 +686,7 @@ class broker:
  #  #    ##    #    #       #    #  #     # #     #    #    
 ### #     #    #    ####### #     # #     #  #####     #    
 
-    def publish(self, queue, msg_text=None, priority=None, clean=True, requeue=False, requeue_prio=None, timeout=None):
+    def publish(self, queue, msg_text=None, priority=None, clean=True, requeue=False, requeue_prio=None, timeout=None, requeue_counter=0, requeue_limit=None):
         """
         Publish a message to a queue
         
@@ -724,7 +729,7 @@ class broker:
             requeue = requeue_prio
 
         # init a new message object
-        msg = message(message=msg_text, queue=queue, priority=priority, timestamps=[time.time()], requeue=requeue, timeout=timeout)
+        msg = message(message=msg_text, queue=queue, priority=priority, requeue=requeue, timeout=timeout, requeue_counter=requeue_counter, requeue_limit=requeue_limit)
 
         # get the next queue number
         msg.queue_number = self.get_queue_number(queue)
@@ -843,14 +848,14 @@ def view(args=None):
     if not args:
         parser = argparse.ArgumentParser(
             description='View available queues and number of messages.',
-            usage='''{} view [-hfnjvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+            usage='''ddmq view [-hfnjvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]'''
     )
         # add available options for this sub-command
         parser.add_argument('root', help="the message queue's root folder", type=str)
         parser.add_argument('queue', nargs='?', help="name of specific queue(s) to view", type=str)
         parser.add_argument('-f', action='store_true', help="create the root folder if needed")
         parser.add_argument('-n', action='store_true', help="only print the name of queues (faster)")
-        parser.add_argument('--format', nargs='?', help="specify output format (plain, json, yaml)", default='plain', type=str)
+        parser.add_argument('--format', nargs='?', help="specify output format (plain, json, yaml)", default='default', type=str)
         parser.add_argument('-v', action='store_true', help="verbose mode")
         parser.add_argument('-d', action='store_true', help="debug mode")
 
@@ -900,8 +905,8 @@ def view(args=None):
             queues[queue] = [len(msgs[0]), len(msgs[1])]
 
     # print in the requested format
-    if print_format not in ['plain', 'json', 'yaml'] and print_format is not None:
-        raise ValueError("Unknown format, {}. Valid formats are plain, json and yaml.")
+    if print_format not in ['plain', 'json', 'yaml', 'default'] and print_format is not None:
+        raise ValueError("Unknown format, {}. Valid formats are 'default', 'plain', 'json' and 'yaml'.")
 
     if print_format == 'json':
         print(json.dumps(queues).rstrip())
@@ -913,15 +918,20 @@ def view(args=None):
 
     else:
 
-        # try using beautifultables if it is installed
-        try:
-            from beautifultable import BeautifulTable
+        # try using beautifultables if it is installed, otherwise fall back to ugly table
+        if print_format == 'default':
+            try:
+                from beautifultable import BeautifulTable
+            except ImportError:
+                print_format = 'plain'
 
+
+        if print_format == 'default':
             table = BeautifulTable()
             if not only_names:
-                table.column_headers = ["Queue", "msg in queue", "msg at work"]
+                table.column_headers = ["queue", "msg in queue", "msg at work"]
             else:
-                table.column_headers = ["Queue"]
+                table.column_headers = ["queue"]
             for queue in sorted(queues):
                 if not only_names:
                     table.append_row([queue, queues[queue][0], queues[queue][1]])
@@ -935,23 +945,30 @@ def view(args=None):
                 else:
                     table.append_row([''])
 
-        # otherwise fall back to ugly table
-        except ImportError:
-
+        # print plain table
+        else:
             table = ""
-            if not only_names:
-                table += "Queue\t\t\tmsg in queue\tmsg at work\n"
+
+            # just print the table names
+            if only_names:
+                for queue in sorted(queues):
+                    table += queue+os.linesep
+
+            # construct a plain table
             else:
-                table += "Queue\n"
-            for queue in sorted(queues):
-                if not only_names:
-                    table += "{}\t\t\t{}\t\t{}\n".format(queue, queues[queue][0], queues[queue][1])
-                else:
-                    table += "{}\n".format(queue)
+                # add header row
+                queues['*queue*'] = ['*msg in queue*', '*msg at work*']
+                width_col1 = max([len(x) for x in queues.keys()])
+                width_col2 = max([len(str(x[0])) for x in queues.values()])
+                width_col3 = max([len(str(x[1])) for x in queues.values()])
+
+                for key,val in sorted(queues.items()):
+                    table += "| {0:<{col1}} | {1:<{col2}} | {2:<{col3}} |{3}".format(key, val[0], val[1], os.linesep, col1=width_col1, col2=width_col2, col3=width_col3)
+
+            # remove the last newline
             table = table.rstrip()
 
         print(str(table))
-        return
 
 
 
@@ -967,7 +984,7 @@ def create(args=None):
     """
     parser = argparse.ArgumentParser(
         description='Create queue(s).',
-        usage='''{} create [-hfvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+        usage='''ddmq create [-hfvds] <root> <queue1>[,<queue2>,...,<queueN>]'''
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder", type=str)
@@ -1042,7 +1059,7 @@ def delete(args=None):
     """
     parser = argparse.ArgumentParser(
         description='Delete queue(s).',
-        usage='''{} delete [-hfvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+        usage='''ddmq delete [-hfvds] <root> <queue1>[,<queue2>,...,<queueN>]'''
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder", type=str)
@@ -1112,7 +1129,7 @@ def publish(args=None):
     """
     parser = argparse.ArgumentParser(
         description='Publish message to a queue.',
-        usage='''{} publish [options] <root> <queue> "<message>"'''.format(sys.argv[0])
+        usage='''ddmq publish [options] <root> <queue> "<message>"'''
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder", type=str)
@@ -1121,7 +1138,8 @@ def publish(args=None):
     parser.add_argument('-f', action='store_true', help="create the root folder and queue if needed")
     parser.add_argument('-p', '--priority', nargs='?', help="define priority of the message (lower number = higer priority)", type=int)
     parser.add_argument('-t', '--timeout', nargs='?', help="define timeout of the message in seconds", type=int)
-    parser.add_argument('-r', '--requeue', action='store_true', help="set to requeue message on fail or timeout. Default priority is 0 (top priority) for requeued messages unless changed by --requeue_prio or config files")
+    parser.add_argument('-r', '--requeue', action='store_true', help="set to requeue message on fail or timeout. Default priority for requeued messages is 0 (top priority), unless changed by --requeue_prio or config files")
+    parser.add_argument('-l', '--requeue_limit', nargs='?', help="define the number of times the message is allowed to be requeued before being permanently deleted after expiry", type=int)
     parser.add_argument('--requeue_prio', help="set custom priority to message when it is requeued. Implies -r even if not explicitly set", type=int)
     parser.add_argument('-C', '--skip_cleaning', action='store_true', help="set to publish the message to the queue without doing cleaning of the queue first")
     parser.add_argument('-v', action='store_true', help="verbose mode")
@@ -1169,12 +1187,12 @@ def publish(args=None):
 
     # call the publish function with the given arguments
     try:
-        msg = brokerObj.publish(queue=args.queue, msg_text=args.message, priority=args.priority, clean=args.skip_cleaning, requeue=requeue, requeue_prio=args.requeue_prio, timeout=args.timeout)
+        msg = brokerObj.publish(queue=args.queue, msg_text=args.message, priority=args.priority, clean=args.skip_cleaning, requeue=requeue, requeue_prio=args.requeue_prio, timeout=args.timeout, requeue_limit=args.requeue_limit)
     except IOError:
         sys.exit("Unable to write to the specified queue directory ({}).".format(os.path.join(args.root, args.queue)))
 
     if not args.s:
-        print("Successfully published message:\n\n{}".format(msg))
+        print("Successfully published message:{0}{0}{1}".format(os.linesep, msg))
 
 
 
@@ -1193,7 +1211,7 @@ def consume(args=None):
     """
     parser = argparse.ArgumentParser(
         description='Consume message(s) from queue.',
-        usage='''{} consume [-hfnCvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+        usage='''ddmq consume [-hfnCvd] [--format <plain|json|yaml>] <root> <queue>'''
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder")
@@ -1262,7 +1280,7 @@ def purge(args=None):
     """
     parser = argparse.ArgumentParser(
         description='Purge queue(s).',
-        usage='''{} purge [-hfvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
+        usage='''ddmq purge [-hfvds] <root> <queue1>[,<queue2>,...,<queueN>]'''
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder", type=str)
@@ -1325,6 +1343,85 @@ def purge(args=None):
 
 
 
+
+def clean(args=None):
+    """
+    Handle the command-line sub-command clean
+    
+    Args:
+        args:   a pre-made args object, in the case of json being parsed from the command-line
+
+    Returns:
+        None
+    """
+    parser = argparse.ArgumentParser(
+        description='Clean queue(s).',
+        usage='''ddmq clean [-hfvds] <root> <queue1>[,<queue2>,...,<queueN>]'''
+)
+    # add available options for this sub-command
+    parser.add_argument('root', help="the message queue's root folder", type=str)
+    parser.add_argument('queue', help="comma-separated names of specific queue(s) to delete", type=str)
+    parser.add_argument('-f', action='store_true', help="create the root folder if needed")
+    parser.add_argument('-v', action='store_true', help="verbose mode")
+    parser.add_argument('-d', action='store_true', help="debug mode")
+    parser.add_argument('-s', action='store_true', help="silent mode")
+
+
+    # now that we're inside a subcommand, ignore the first two arguments
+    args = parser.parse_args(sys.argv[2:])
+
+    # create a broker object
+    try:
+        brokerObj = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
+    except ValueError:
+        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
+    except OSError:
+        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+
+    # readability
+    queues = args.queue
+    silent = args.s
+
+    log.info('Cleaning queue(s): {}'.format(', '.join(queues.split(','))))
+
+    # get existing queue names
+    existing_queues = brokerObj.list_queues()
+
+    # purge the queues
+    cleaned_queues = 0
+    for queue in queues.split(','):
+
+        # skip names with weird characters in them
+        if not bool(re.match('^[a-zA-Z0-9_-]+$', queue)):
+            if not silent:
+                print("Skipping {}, invalid name".format(queue))
+                continue
+
+        # if it doesn't exists
+        if queue not in existing_queues:
+            if not silent:
+                print("Queue does not exist: {}".format(os.path.join(brokerObj.root, queue)))
+
+        else:
+            try:
+                # purge the queue
+                clean_return = brokerObj.clean(queue, force=True)
+                if clean_return:
+                    if not silent:
+                        print("Cleaned queue: {}".format(queue))
+                    cleaned_queues += 1
+            except OSError:
+                print("Error: could not read/write to the queue or work directory ({})".format(os.path.join(brokerObj.root, queue)))
+    
+    if not silent and cleaned_queues>1:
+        print('Cleaned {} queues'.format(cleaned_queues))
+
+
+
+
+
+
+
 def json_payload():
     """
     Handle the command-line sub-command json
@@ -1335,6 +1432,13 @@ def json_payload():
     Returns:
         None
     """
+
+    parser = argparse.ArgumentParser(
+        description='Purge queue(s).',
+        usage='''ddmq json \'<json object>\''''
+        )
+    args = parser.parse_args(['json_payload'])
+
     try:
         # read the payload
         payload = json.loads(sys.argv[2])
@@ -1362,12 +1466,25 @@ def json_payload():
     # apply the payload over the defaults
     options.update(payload)
 
+    Tracer()()
+
+    
+
     # transfer the options to the args object
     for key,val in options.items():
         vars(args)[key] = val
 
     # use dispatch pattern to invoke method with same name
     eval(args.command)(args=args)
+
+
+
+
+# TODO
+# def clean():
+# def search():
+# def remove():
+# def modify():
 
 
 
@@ -1382,13 +1499,12 @@ def json_payload():
 #     # #     #  #  #    ## 
 #     # #     # ### #     # 
 
-# debug
-if __name__ == "__main__":
+def main():
     """Run the queue in a command-line mode"""
 
     parser = argparse.ArgumentParser(
         description='Command-line interface to Dead Drop Messaging Queue (ddmq).',
-        usage='''{0} <command> [<args>]
+        usage='''ddmq <command> [<args>]
 
 The available commands are:
 view      List queues and number of messages
@@ -1400,9 +1516,9 @@ purge     Purge all messages from queue
 json      Run a command packaged as a JSON object
 
 For more info about the commands, run
-{0} <command> -h 
+ddmq <command> -h 
 
-'''.format(sys.argv[0]))
+''')
     
     parser.add_argument('command', nargs='?', help='Subcommand to run')
     parser.add_argument('-v', '--version', action='store_true', help='print version')
@@ -1422,7 +1538,7 @@ For more info about the commands, run
         exit(1)
 
     # check if there is no command given
-    elif args.command not in ['view', 'create', 'delete', 'publish', 'consume', 'purge', 'json']:
+    elif args.command not in ['view', 'create', 'delete', 'publish', 'consume', 'purge', 'clean', 'json']:
         print("Unrecognized command: {}".format(args.command))
         parser.print_help()
         exit(1)
@@ -1435,3 +1551,6 @@ For more info about the commands, run
     # use dispatch pattern to invoke method with same name
     eval(args.command)()
 
+# run as command-line tool
+if __name__ == "__main__":
+    main()
