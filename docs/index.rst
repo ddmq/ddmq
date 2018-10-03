@@ -74,8 +74,9 @@ Python Module Usage
    :maxdepth: 2
    :caption: Submodules:
 
-   broker
    message
+   broker
+   
 
 
 
