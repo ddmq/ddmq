@@ -1,37 +1,37 @@
 #! /usr/bin/env python
-"""
-Defines the broker class which can interact with a ddmq directory.
-You define a broker by supplying at least a root directory, for example
+# """
+# Defines the broker class which can interact with a ddmq directory.
+# You define a broker by supplying at least a root directory, for example
 
->>> b = broker('../temp/ddmq', create=True)
->>> print(b)
-create = True
-root = ../temp/ddmq
+# >>> b = broker('../temp/ddmq', create=True)
+# >>> print(b)
+# create = True
+# root = ../temp/ddmq
 
->>> b.publish('queue_name', "Hello World!")
-filename = queue_name/999.2.ddmq9d434e370e984ffbabf7455df4acf605
-id = 9d434e370e984ffbabf7455df4acf605
-message = Hello World!
-priority = 999
-queue = queue_name
-queue_number = 2
-requeue = False
-timeout = None
+# >>> b.publish('queue_name', "Hello World!")
+# filename = queue_name/999.2.ddmq9d434e370e984ffbabf7455df4acf605
+# id = 9d434e370e984ffbabf7455df4acf605
+# message = Hello World!
+# priority = 999
+# queue = queue_name
+# queue_number = 2
+# requeue = False
+# timeout = None
 
->>> msg = b.consume('queue_name')
-[filename = 1538484616.999.2.ddmq9d434e370e984ffbabf7455df4acf605
-id = 9d434e370e984ffbabf7455df4acf605
-message = Hello World!
-priority = 999
-queue = queue_name
-queue_number = 2
-requeue = False
-timeout = None]
+# >>> msg = b.consume('queue_name')
+# [filename = 1538484616.999.2.ddmq9d434e370e984ffbabf7455df4acf605
+# id = 9d434e370e984ffbabf7455df4acf605
+# message = Hello World!
+# priority = 999
+# queue = queue_name
+# queue_number = 2
+# requeue = False
+# timeout = None]
 
->>> print(msg[0].message)
-Hello World!
+# >>> print(msg[0].message)
+# Hello World!
 
-"""
+# """
 
 # if python2
 from __future__ import print_function
