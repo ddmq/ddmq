@@ -21,11 +21,29 @@ import json
 import logging as log
 
 class message:
-    """Class to represent a single message"""
+    """
+    Class to represent a single message
+    """
 
 
     def __init__(self, queue=None, message=None, timestamps=None, timeout=None, id=None, priority=None, queue_number=None, filename=None, requeue=None):
-        """Initialize a message with the given parameters"""
+        """
+        Initialize a message with the given parameters
+        
+        Args:
+            queue:          name of the queue the message belongs to
+            message:        the message text itself
+            timestamps:     to be removed
+            timeout:        a custom timeout limit to be used when processing the message, in seconds
+            id:             randomly generated uuid for the message
+            priority:       a custom priority to be used when processing the message
+            queue_number:   the number in the queue the message has. This number determins the order of messages with the same priority level
+            filename:       file name of the file containing this message
+            requeue:        if True, the message will be requeued with default priority after it expires. If set to an int, that will be used as a custom requeuing priority
+
+        Returns:
+            None
+        """
 
         log.debug('Initializing message object')
 

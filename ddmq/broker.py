@@ -76,7 +76,9 @@ version = "0.8.3"
 
 
 class broker:
-    """Class to interact with messageing queues"""
+    """
+    Class to interact with messaging queues
+    """
 
     # default queue settings
     settings =  {   'message_timeout': 600, 
@@ -86,7 +88,18 @@ class broker:
 
 
     def __init__(self, root, create=False, verbose=False, debug=False):
-        """Initialize a broker object at a specified root directory. If the create flag is set to True it will create the directories needed if they are missing"""
+        """
+        Initialize a broker object at a specified root directory. If the create flag is set to True it will create the directories needed if they are missing
+
+        Args:
+            root:       path to the root directory where the queues are located
+            create:     if True, all missing folders will be created without throwing errors
+            verbose:    verbose logging to screen
+            debug:      even more verbose logging to screen
+
+        Returns:
+            None
+        """
 
         # logging
         if verbose:
@@ -122,7 +135,15 @@ class broker:
 
 
     def __repr__(self):
-        """Print the basic options of the broker object"""
+        """
+        Print the basic options of the broker object
+
+        Args:
+            None
+
+        Returns:
+            a str that represents the broker object
+        """
 
         log.debug('Printing a broker object')
 
@@ -148,19 +169,43 @@ class broker:
  #####  #######    #       #    ### #     #  #####   #####  
                                                             
     def get_global_settings(self):
-        """Get the global settings from the config file in the root dir"""
+        """
+        Get the global settings from the config file in the root dir, adding the settings to self.settings
+                
+        Args:
+            None
+
+        Returns:
+            None
+        """
         log.debug('Updating settings from config file at {}/ddmq.yaml'.format(self.root))
         self.update_settings(os.path.join(self.root, 'ddmq.yaml'))
 
 
     def get_queue_settings(self, queue):
-        """Get settings from a config file from a specified queue dir, overriding the global settings from the config file in the root directory"""
+        """
+        Get settings from a config file from a specified queue dir, , adding the settings to self.settings
+
+        Args:
+            queue:  name of the queue to get the settings from
+
+        Returns:
+            None
+        """
         log.debug('Updating settings from config file at {}/ddmq.yaml'.format(os.path.join(self.root, queue)))
         self.update_settings(os.path.join(self.root, queue, 'ddmq.yaml'))
 
 
     def update_settings(self, path):
-        """Reads the settings from a config file and overrides the settings already in memory"""
+        """
+        Reads the settings from a config file and overrides the settings already in memory
+
+        Args:
+            path:   path to the config file to read
+
+        Returns:
+            None
+        """
 
         # read the config file and update the settings dict
         with open(path, 'r') as settings_handle:
@@ -173,7 +218,16 @@ class broker:
 
 
     def update_settings_file(self, path, package):
-        """Update the settings in a config file at the specified path"""
+        """
+        Update the settings in a config file at the specified path
+        
+        Args:
+            path:       path to the config file to be written to
+            package:    a dict containging the changes to the config file
+
+        Returns:
+            None
+        """
 
         log.debug('Updating config file at {}/ddmq.yaml'.format(path))
 
@@ -209,7 +263,16 @@ class broker:
  #####  ####### ####### #     # #     # ### #     #  #####  
 
     def clean(self, queue, get_queue_settings=True):
-        """Clean out expired message from a specified queue"""
+        """
+        Clean out expired message from a specified queue
+        
+        Args:
+            queue:                  name of the queue to clean
+            get_queue_settings:     if True, the queue specific settings will be loaded before cleaning
+
+        Returns:
+            None
+        """
 
         # get the queue settings
         if get_queue_settings:
@@ -264,7 +327,15 @@ class broker:
 
 
     def clean_all(self):
-        """Clean all the queues in the root director"""
+        """
+        Clean all the queues in the root director
+        
+        Args:
+            None
+
+        Returns:
+            None
+        """
 
         log.info('Cleaning all queues')
 
@@ -289,7 +360,15 @@ class broker:
 
 
     def list_queues(self):
-        '''Generate a list of all queues (subdirectories) in the root folder'''
+        """
+        Generate a list of all valid queues (subdirectories with ddmq.yaml files in them) in the root folder
+        
+        Args:
+            None
+
+        Returns:
+            a list of names of valid queues
+        """
 
         log.debug('Getting queue list')
 
@@ -309,7 +388,15 @@ class broker:
 
 
     def get_message_list(self, queue):
-        ''' '''
+        """ 
+        Gets a list of all messages in the specified queue
+        
+        Args:
+            queue:  name of the queue to get messages from
+
+        Returns:
+            returns 2 lists of file names. The first is the list of all messages still waiting in the queue and the second is a list of all the messages in the queue's work directory
+        """
 
         log.debug('Listing messages in queue {}'.format(queue))
         
@@ -330,7 +417,15 @@ class broker:
 
 
     def delete_queue(self, queue):
-        """Delete a specified queue"""
+        """
+        Delete a specified queue
+        
+        Args:
+            queue:  name of the queue to delete
+
+        Returns:
+            True if everything goes according to plan
+        """
 
         log.info('Deleting queue {}'.format(queue))
 
@@ -364,7 +459,15 @@ class broker:
 
 
     def create_queue(self, queue):
-        """Create a specified queue"""
+        """
+        Create a specified queue
+        
+        Args:
+            queue:  name of the queue to create
+
+        Returns:
+            True if everything goes according to plan
+        """
 
         log.info('Creating queue {}'.format(queue))
 
@@ -375,24 +478,48 @@ class broker:
         return True
 
 
-    def search_queue(self, queue, query):
-        """Search the messages of a specified queue for the query term"""
+    # def search_queue(self, queue, query):
+    #     """
+    #     Search the messages of a specified queue for the query term (NOT YET IMPLEMENTED)
+        
+    #     Args:
+    #         queue:  name of the queue to search
+    #         query:  query to search for
+    #     Returns:
+    #         a list of all messages matching to query
+    #     """
 
-        log.info('Searching {} for "{}"'.format(queue, query))
+    #     log.info('Searching {} for "{}"'.format(queue, query))
 
-        return True
+    #     return True
 
 
-    def delete_message(self, queue, id):
-        """Delete a specified message"""
+    # def delete_message(self, path):
+    #     """
+    #     Delete a specified message (NOT YET IMPLEMENTED)
+        
+    #     Args:
+    #         path:   path to the message to be deleted
 
-        log.info('Deleting message {} from {}'.format(id, queue))
+    #     Returns:
+    #         None
+    #     """
 
-        return True
+    #     log.info('Deleting message {} from {}'.format(id, queue))
+
+    #     return True
 
 
     def purge_queue(self, queue):
-        """Purge the specified queue"""
+        """
+        Purge the specified queue of all messages, but keep the queue folders and config file
+        
+        Args:
+            queue:  name of the queue to purge
+
+        Returns:
+            a list of 2 numbers; the first is how many messages still waiting in the queue were deleted, and the second how many messages in the queues work directory that was deleted
+        """
 
         log.info('Purging {}'.format(queue))
 
@@ -416,20 +543,37 @@ class broker:
         return removed, removed_work
 
 
-    def get_message(self, queue, id):
-        """Get a specified message"""
+    # def get_message(self, path):
+    #     """
+    #     Get a specified message (NOT YET IMPLEMETED)
+        
+    #     Args:
+    #         path:   path to the message to fetch
 
-        log.debug('Fetching message {} from {}'.format(id, queue))
+    #     Returns:
+    #         the requested message
+    #     """
 
-        return True
+    #     log.debug('Fetching message {} from {}'.format(id, queue))
+
+    #     return True
 
 
-    def update_message(self, queue, id, update):
-        """Update a specified message"""
+    # def update_message(self, path, update):
+    #     """
+    #     Update a specified message (NOT YET IMPLEMETED)
+        
+    #     Args:
+    #         path:   path to the message to be updated
+    #         update: a dict containing the changes to be made
 
-        log.debug('Updating message {} in {}'.format(id, queue))
+    #     Returns:
+    #         None
+    #     """
 
-        return True
+    #     log.debug('Updating message {} in {}'.format(id, queue))
+
+    #     return True
 
 
 
@@ -445,7 +589,16 @@ class broker:
  #####     #    ### #######  #####  
 
     def check_dir(self, path, only_conf=False):
-        """Check if the directory contains a ddmq.yaml file to avoid littering non-queue dirs"""
+        """
+        Check if the directory contains a ddmq.yaml file to avoid littering non-queue dirs
+        
+        Args:
+            path:       path to the directory to check
+            only_conf:  if True, only check if the ddmq.yaml file is present. If False, also check that there is a subdirectory called 'work'
+
+        Returns:
+            None
+        """
         if os.path.isfile(os.path.join(path, 'ddmq.yaml')):
 
             # if only the conf file is enough
@@ -458,7 +611,15 @@ class broker:
 
 
     def get_queue_number(self, queue):
-        """Generate the next incremental queue number for a specified queue"""
+        """
+        Generate the next incremental queue number for a specified queue
+        
+        Args:
+            queue:  name of the queue to generate the queue number for
+
+        Returns:
+            an int that is the next queue number in succession
+        """
         
         log.debug('Generating next queue number in {}'.format(queue))
 
@@ -490,7 +651,15 @@ class broker:
 
 
     def create_folder(self, path):
-        """Create a folder at a specified path and make sure the user can rwx the folder"""
+        """
+        Create a folder at a specified path and make sure the user can rwx the folder
+        
+        Args:
+            path:   path to the directory to be created
+
+        Returns:
+            None
+        """
         
         log.info('Creating folder: {}'.format(path))
 
@@ -513,7 +682,21 @@ class broker:
 ### #     #    #    ####### #     # #     #  #####     #    
 
     def publish(self, queue, msg_text=None, priority=None, clean=True, requeue=False, requeue_prio=None, timeout=None):
-        """Publish a message to a queue"""
+        """
+        Publish a message to a queue
+        
+        Args:
+            queue:          name of the queue to publish to
+            msg_text:       the actual message
+            priority:       the priority of the message (default 999). Lower number means higher priority when processing
+            clean:          if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just publish the message right away and not bother doing any cleaning first (faster).
+            requeue:        if True, the message will be requeud after it expires. If False it will just be deleted.
+            requeue_prio:   if set (int), the message will get this priority when requeued. Default is 0, meaning requeued messages will be put first in the queue.
+            timeout:        if set (int), will override the global and queue specific default setting for how many seconds a message expires after.
+
+        Returns:
+            a copy of the message published
+        """
 
         log.info('Publishing message to {}'.format(queue))
 
@@ -561,7 +744,17 @@ class broker:
 
 
     def consume(self, queue, n=1, clean=True):
-        """Consume 1 (or more) messages from a specified queue"""
+        """
+        Consume 1 (or more) messages from a specified queue. The consumed messages will be moved to the queues work folder and have the expiry epoch time prepended to the file name.
+        
+        Args:
+            queue:  name of the queue to consume from
+            n:      the number (int) of messages to consume
+            clean:  if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just consume the message(s) right away and not bother doing any cleaning first (faster).
+
+        Returns:
+            a list of the messages that were fetched
+        """
 
         log.info('Consuming {} message(s) from {}'.format(n, queue))
 
@@ -637,7 +830,15 @@ class broker:
 
 
 def view(args=None):
-    '''Handle the command-line sub-command view'''
+    """
+    Handle the command-line sub-command view
+    
+    Args:
+        args:   a pre-made args object, in the case of json being parsed from the command-line
+
+    Returns:
+        None
+    """
 
     if not args:
         parser = argparse.ArgumentParser(
@@ -754,8 +955,16 @@ def view(args=None):
 
 
 
-def create(json_payload=False):
-    '''Handle the command-line sub-command create'''
+def create(args=None):
+    """
+    Handle the command-line sub-command create
+    
+    Args:
+        args:   a pre-made args object, in the case of json being parsed from the command-line
+
+    Returns:
+        None
+    """
     parser = argparse.ArgumentParser(
         description='Create queue(s).',
         usage='''{} create [-hfvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
@@ -821,8 +1030,16 @@ def create(json_payload=False):
         print('Created {} new queues'.format(created_queues))
 
 
-def delete(json_payload=False):
-    '''Handle the command-line sub-command delete'''
+def delete(args=None):
+    """
+    Handle the command-line sub-command delete
+    
+    Args:
+        args:   a pre-made args object, in the case of json being parsed from the command-line
+
+    Returns:
+        None
+    """
     parser = argparse.ArgumentParser(
         description='Delete queue(s).',
         usage='''{} delete [-hfvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
@@ -883,8 +1100,16 @@ def delete(json_payload=False):
 
 
 
-def publish(json_payload=False):
-    '''Handle the command-line sub-command publish'''
+def publish(args=None):
+    """
+    Handle the command-line sub-command publish
+    
+    Args:
+        args:   a pre-made args object, in the case of json being parsed from the command-line
+
+    Returns:
+        None
+    """
     parser = argparse.ArgumentParser(
         description='Publish message to a queue.',
         usage='''{} publish [options] <root> <queue> "<message>"'''.format(sys.argv[0])
@@ -956,8 +1181,16 @@ def publish(json_payload=False):
 
 
 
-def consume(json_payload=False):
-    '''Handle the command-line sub-command consume'''
+def consume(args=None):
+    """
+    Handle the command-line sub-command consume
+    
+    Args:
+        args:   a pre-made args object, in the case of json being parsed from the command-line
+
+    Returns:
+        None
+    """
     parser = argparse.ArgumentParser(
         description='Consume message(s) from queue.',
         usage='''{} consume [-hfnCvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
@@ -1017,8 +1250,16 @@ def consume(json_payload=False):
 
 
 
-def purge(json_payload=False):
-    '''Handle the command-line sub-command purge'''
+def purge(args=None):
+    """
+    Handle the command-line sub-command purge
+    
+    Args:
+        args:   a pre-made args object, in the case of json being parsed from the command-line
+
+    Returns:
+        None
+    """
     parser = argparse.ArgumentParser(
         description='Purge queue(s).',
         usage='''{} purge [-hfvds] <root> [queue1,queue2,...,queueN]'''.format(sys.argv[0])
@@ -1085,7 +1326,15 @@ def purge(json_payload=False):
 
 
 def json_payload():
-    """Handle the command-line sub-command json"""
+    """
+    Handle the command-line sub-command json
+    
+    Args:
+        None
+
+    Returns:
+        None
+    """
     try:
         # read the payload
         payload = json.loads(sys.argv[2])
