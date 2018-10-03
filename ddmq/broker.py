@@ -300,8 +300,7 @@ class broker:
 
                 try:
                     # load the message from the file
-                    with open(msg_filepath, 'r') as msg_handle:
-                        msg = message.json2msg(json.load(msg_handle))
+                    msg = self.get_message(msg_filepath)
                 except (FileNotFoundError, IOError) as e:
                     # race conditions could cause files being removed since the listdir was run
                     print("Warning: while cleaning, message file {} was missing. This could be due to another process operating on the queue at the same time. It should be pretty rare, so if it happens often it could be some other problem causing it.".format(msg_filepath))
@@ -317,7 +316,7 @@ class broker:
                     if type(msg.requeue) == int:
                         msg.priority = msg.requeue
 
-                    # unless there
+                    # unless the requeue limit has been reached
                     if not msg.requeue_limit or msg.requeue_counter < msg.requeue_limit:
                         
                         # requeue the message
@@ -548,20 +547,59 @@ class broker:
         return removed, removed_work
 
 
-    # def get_message(self, path):
-    #     """
-    #     Get a specified message (NOT YET IMPLEMETED)
+    def get_message(self, path):
+        """
+        Get a specified message
         
-    #     Args:
-    #         path:   path to the message to fetch
+        Args:
+            path:   path to the message to fetch
 
-    #     Returns:
-    #         the requested message
-    #     """
+        Returns:
+            the requested message
+        """
 
-    #     log.debug('Fetching message {} from {}'.format(id, queue))
+        log.debug('Fetching message {}'.format(path))
 
-    #     return True
+        # load the message from the file
+        with open(path, 'r') as msg_handle:
+             return message.json2msg(json.load(msg_handle))
+
+
+
+
+    def requeue_message(self, path, msg=None):
+        """
+        Requeue a specified message
+        
+        Args:
+            path:   path to the message to requeue
+
+        Returns:
+            True if everything goes according to plan
+        """
+
+        log.debug('Requeuing message {}'.format(path))
+
+        # load the message from the file
+        if not msg:
+            msg = self.get_message(path)
+
+        # requeue if it should be
+
+        # change priority to default value
+        msg.priority = self.settings['requeue_prio']
+
+        # check if custom requeue prio is set
+        if type(msg.requeue) == int:
+            msg.priority = msg.requeue
+
+        # requeue the message
+        self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, requeue_counter=msg.requeue_counter+1, requeue_limit=msg.requeue_limit, clean=False)
+
+        # then delete the old message file, assumes the message is consumed and located in the work dir
+        os.remove(os.path.join(self.root, msg.queue, 'work', os.path.split(path)[-1]))
+
+        return True
 
 
     # def update_message(self, path, update):
@@ -670,8 +708,8 @@ class broker:
 
         # create the directory recursivly and set correct permissions
         Path(path).mkdir(exist_ok=self.create)
-        st = os.stat(path) # fetch current permissions
-        os.chmod(path, st.st_mode | stat.S_IRWXU) # add u+rwx to the folder, leaving g and o as they are
+        # st = os.stat(path) # fetch current permissions
+        # os.chmod(path, st.st_mode | stat.S_IRWXU) # add u+rwx to the folder, leaving g and o as they are
 
 
 
@@ -817,6 +855,107 @@ class broker:
             return None
         else:
             return restored_messages
+
+
+    def nack(self, queue, msg_files, requeue=None, clean=True):
+        """
+        Negative acknowledgement of message(s)
+        
+        Args:
+            paths:      either as a single string or a list of paths to message(s) to nack
+            requeue:    True will force message(s) to be requeued, False will force messages to be purged, None (default) will leave it up to the message itself if it should be requeued or not
+
+        Returns:
+            True if everything goes according to plan
+        """
+
+        # convert single message to a list if needed
+        if type(msg_files) != list:
+            msg_files = [msg_files]
+
+        # for each message to process
+        nacked = []
+        for msg_file in msg_files:
+
+            msg_path = os.path.join(self.root, queue, 'work', msg_file)
+
+            # check if the file exists
+            if not os.path.isfile(msg_path):
+                print("Warning: message file missing, {}".format(msg_path))
+                continue
+
+            # if it should be requeued
+            if requeue:
+                self.requeue_message(msg_path)
+
+            # if it is up to the message if it should be requeued or not
+            elif requeue is None:
+                msg = self.get_message(msg_path)
+                if msg.requeue:
+                    self.requeue_message(msg_path, msg)
+
+            # if not, remove the acknowledged message
+            else:
+                # assumes the message is consumed and located in the work dir
+                try:
+                    os.remove(os.path.join(self.root, queue, 'work', msg_file))
+                except (FileNotFoundError, OSError) as e:
+                    # race conditions could cause files being removed since the listdir was run
+                    print("Warning: while nacking, message file {} was missing. This could be due to another process operating on the queue at the same time. It should be pretty rare, so if it happens often it could be some other problem causing it.".format(msg_path))
+                    continue
+            
+            nacked.append(msg_file)
+        
+        return nacked
+
+
+    def ack(self, queue, msg_files, requeue=False, clean=True):
+        """
+        Positive acknowledgement of message(s)
+        
+        Args:
+            paths:      either as a single string or a list of paths to message(s) to nack
+            requeue:    True will force message(s) to be requeued, False (default) will force messages to be purged, None will leave it up to the message itself if it should be requeued or not
+
+        Returns:
+            a list of file names of all messages acknowledged
+        """
+
+        # convert single message to a list if needed
+        if type(msg_files) != list:
+            msg_files = [msg_files]
+
+        # for each message to process
+        acked = []
+        for msg_file in msg_files:
+
+            msg_path = os.path.join(self.root, queue, 'work', msg_file)
+
+            # check if the file exists
+            if not os.path.isfile(msg_path):
+                print("Warning: message file missing, {}".format(msg_path))
+                continue
+
+            # if it should be requeued
+            if requeue:
+                self.requeue_message(msg_path)
+
+            # if not, remove the acknowledged message
+            else:
+                # assumes the message is consumed and located in the work dir
+                try:
+                    os.remove(os.path.join(self.root, queue, 'work', msg_file))
+                except (FileNotFoundError, OSError) as e:
+                    # race conditions could cause files being removed since the listdir was run
+                    print("Warning: while acking, message file {} was missing. This could be due to another process operating on the queue at the same time. It should be pretty rare, so if it happens often it could be some other problem causing it.".format(msg_path))
+                    continue
+            
+            acked.append(msg_file)
+        
+        return acked
+
+
+
 
 
 
@@ -997,7 +1136,7 @@ def create(args=None):
 
     # now that we're inside a subcommand, ignore the first two arguments
     args = parser.parse_args(sys.argv[2:])
-
+    
     # create a broker object
     try:
         brokerObj = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
@@ -1215,11 +1354,11 @@ def consume(args=None):
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder")
-    parser.add_argument('queue', help="comma-separated names of specific queue(s) to delete")
+    parser.add_argument('queue', help="name of queue to consume from")
     parser.add_argument('-f', action='store_true', help="create the root folder and queue if needed")
     parser.add_argument('-n', nargs='?', help="the number of messages that will be consumed", type=int)
     parser.add_argument('--format', nargs='?', help="specify output format (plain, json, yaml)", default='json', type=str)
-    parser.add_argument('-C', '--skip-cleaning', action='store_false', help="set to publish the message to the queue without doing cleaning of the queue first")
+    parser.add_argument('-C', '--skip-cleaning', action='store_false', help="set to consume the message from the queue without doing cleaning of the queue first")
     parser.add_argument('-v', action='store_true', help="verbose mode")
     parser.add_argument('-d', action='store_true', help="debug mode")
 
@@ -1239,7 +1378,7 @@ def consume(args=None):
     except OSError:
         sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
 
-    # create the broker object
+    # consume the messages
     try:
         messages = brokerObj.consume(queue=args.queue, n=args.n, clean=args.skip_cleaning)
     except IOError:
@@ -1264,6 +1403,112 @@ def consume(args=None):
         else:
             # should not happen
             print(json.dumps(msg))
+
+
+
+
+
+def ack(args=None):
+    """
+    Handle the command-line sub-command ack
+    
+    Args:
+        args:   a pre-made args object, in the case of json being parsed from the command-line
+
+    Returns:
+        None
+    """
+    parser = argparse.ArgumentParser(
+        description='Positively acknowledge message(s) from queue.',
+        usage='''ddmq ack [-hfnCvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]'''
+)
+    # add available options for this sub-command
+    parser.add_argument('root', help="the message queue's root folder")
+    parser.add_argument('queue', help="name of the queue the messages are in")
+    parser.add_argument('msg_files', help="comma-separated names of file names of the messages to acknowledge")
+    parser.add_argument('-C', '--skip-cleaning', action='store_false', help="set to ack the message without doing cleaning of the queue first")
+    parser.add_argument('-r', '--requeue',action='store_true', help="force requeue of the messages")
+    parser.add_argument('-v', action='store_true', help="verbose mode")
+    parser.add_argument('-d', action='store_true', help="debug mode")
+
+
+    # now that we're inside a subcommand, ignore the first two arguments
+    args = parser.parse_args(sys.argv[2:])
+
+    # create a broker object
+    try:
+        brokerObj = broker(root=args.root, verbose=args.v, debug=args.d)
+    except ValueError:
+        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
+    except OSError:
+        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+
+    # make the files to a list
+    msg_files = args.msg_files.split(',')
+
+    # send the messages to acknowledgement
+    acked = brokerObj.ack(args.queue, msg_files, requeue=args.requeue, clean=args.skip_cleaning)
+    for msg_file in acked:
+        print('acked {}'.format(os.path.join(brokerObj.root, args.queue, 'work', msg_file)))
+    
+    # print failed acked
+    for msg_file in msg_files:
+        if msg_file not in acked:
+            print('failed ack {}'.format(os.path.join(brokerObj.root, args.queue, 'work', msg_file)))
+
+
+
+
+def nack(args=None):
+    """
+    Handle the command-line sub-command nack
+    
+    Args:
+        args:   a pre-made args object, in the case of json being parsed from the command-line
+
+    Returns:
+        None
+    """
+    parser = argparse.ArgumentParser(
+        description='Negatively acknowledge message(s) from queue.',
+        usage='''ddmq nack [-hfnCvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]'''
+)
+    # add available options for this sub-command
+    parser.add_argument('root', help="the message queue's root folder")
+    parser.add_argument('queue', help="name of the queue the messages are in")
+    parser.add_argument('msg_files', help="comma-separated names of file names of the messages to acknowledge")
+    parser.add_argument('-C', '--skip-cleaning', action='store_false', help="set to nack the message without doing cleaning of the queue first")
+    parser.add_argument('-r', '--requeue',action='store_true', help="force requeue of the messages")
+    parser.add_argument('-v', action='store_true', help="verbose mode")
+    parser.add_argument('-d', action='store_true', help="debug mode")
+
+
+    # now that we're inside a subcommand, ignore the first two arguments
+    args = parser.parse_args(sys.argv[2:])
+
+    # create a broker object
+    try:
+        brokerObj = broker(root=args.root, verbose=args.v, debug=args.d)
+    except ValueError:
+        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
+    except OSError:
+        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+
+    # make the files to a list
+    msg_files = args.msg_files.split(',')
+
+    # send the messages to acknowledgement
+    nacked = brokerObj.nack(args.queue, msg_files, requeue=args.requeue, clean=args.skip_cleaning)
+    for msg_file in nacked:
+        print('nacked {}'.format(os.path.join(brokerObj.root, args.queue, 'work', msg_file)))
+    
+    # print failed acked
+    for msg_file in msg_files:
+        if msg_file not in nacked:
+            print('failed nack {}'.format(os.path.join(brokerObj.root, args.queue, 'work', msg_file)))
+
+
+
 
 
 
@@ -1512,7 +1757,10 @@ create    Create a queue
 delete    Delete a queue
 publish   Publish message to queue
 consume   Consume message from queue
+ack       Positivly acknowledge a message
+nack      Negativly acknowledge a message (possibly requeue)
 purge     Purge all messages from queue
+clean     Clean out expired messages from queue
 json      Run a command packaged as a JSON object
 
 For more info about the commands, run
@@ -1538,7 +1786,7 @@ ddmq <command> -h
         exit(1)
 
     # check if there is no command given
-    elif args.command not in ['view', 'create', 'delete', 'publish', 'consume', 'purge', 'clean', 'json']:
+    elif args.command not in ['view', 'create', 'delete', 'publish', 'consume', 'ack', 'nack', 'purge', 'clean', 'json']:
         print("Unrecognized command: {}".format(args.command))
         parser.print_help()
         exit(1)
