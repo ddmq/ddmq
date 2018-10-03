@@ -862,8 +862,10 @@ class broker:
         Negative acknowledgement of message(s)
         
         Args:
-            paths:      either as a single string or a list of paths to message(s) to nack
+            queue:      name of the queue the files are in
+            msg_files:  either a single path or a list of paths to message(s) to nack
             requeue:    True will force message(s) to be requeued, False will force messages to be purged, None (default) will leave it up to the message itself if it should be requeued or not
+            clean:      if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just ack the message(s) right away and not bother doing any cleaning first (faster).
 
         Returns:
             True if everything goes according to plan
@@ -914,8 +916,10 @@ class broker:
         Positive acknowledgement of message(s)
         
         Args:
-            paths:      either as a single string or a list of paths to message(s) to nack
+            queue:      name of the queue the files are in
+            msg_files:  either a single path or a list of paths to message(s) to ack
             requeue:    True will force message(s) to be requeued, False (default) will force messages to be purged, None will leave it up to the message itself if it should be requeued or not
+            clean:      if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just ack the message(s) right away and not bother doing any cleaning first (faster).
 
         Returns:
             a list of file names of all messages acknowledged
