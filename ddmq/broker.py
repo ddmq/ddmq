@@ -1805,4 +1805,5 @@ ddmq <command> -h
 
 # run as command-line tool
 if __name__ == "__main__":
+    """Run the queue in a command-line mode"""
     main()
