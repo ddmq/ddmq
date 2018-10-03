@@ -101,57 +101,57 @@ class broker:
             None
         """
 
-        # logging
-        if verbose:
-            log.basicConfig(format="%(levelname)s:\t%(message)s", level=log.INFO)
-            log.info("Verbose output.")
-        if debug:
-            log.basicConfig(format="%(levelname)s:\t%(message)s", level=log.DEBUG)
-            log.debug("Debug output.")
-        log.debug('Initializing broker object')
+#         # logging
+#         if verbose:
+#             log.basicConfig(format="%(levelname)s:\t%(message)s", level=log.INFO)
+#             log.info("Verbose output.")
+#         if debug:
+#             log.basicConfig(format="%(levelname)s:\t%(message)s", level=log.DEBUG)
+#             log.debug("Debug output.")
+#         log.debug('Initializing broker object')
 
-        # make sure the root dir is initiated
-        if self.check_dir(root, only_conf=True):
+#         # make sure the root dir is initiated
+#         if self.check_dir(root, only_conf=True):
 
-            self.create = create
-            self.root = root
-            self.get_global_settings()
+#             self.create = create
+#             self.root = root
+#             self.get_global_settings()
 
-        else:
-            # if it should be created
-            if create:
+#         else:
+#             # if it should be created
+#             if create:
 
-                self.create = create
-                self.root = root
+#                 self.create = create
+#                 self.root = root
 
-                # create the root folder and initiate the config file
-                self.create_folder(root)
-                open(os.path.join(root, 'ddmq.yaml'), 'a').close()
+#                 # create the root folder and initiate the config file
+#                 self.create_folder(root)
+#                 open(os.path.join(root, 'ddmq.yaml'), 'a').close()
 
-                self.get_global_settings()
-            else:
-                raise ValueError("Root dir not initiated ({}/ddmq.yaml missing).".format(root))
+#                 self.get_global_settings()
+#             else:
+#                 raise ValueError("Root dir not initiated ({}/ddmq.yaml missing).".format(root))
 
 
 
-    def __repr__(self):
-        """
-        Print the basic options of the broker object
+#     def __repr__(self):
+#         """
+#         Print the basic options of the broker object
 
-        Args:
-            None
+#         Args:
+#             None
 
-        Returns:
-            a str that represents the broker object
-        """
+#         Returns:
+#             a str that represents the broker object
+#         """
 
-        log.debug('Printing a broker object')
+#         log.debug('Printing a broker object')
 
-        # go throguh the variables and collect their names and values
-        text = ""
-        for key,val in sorted(self.__dict__.items()):
-            text += '{} = {}{}'.format(key,val,os.linesep)
-        return text.rstrip()
+#         # go throguh the variables and collect their names and values
+#         text = ""
+#         for key,val in sorted(self.__dict__.items()):
+#             text += '{} = {}{}'.format(key,val,os.linesep)
+#         return text.rstrip()
         
 
 
@@ -160,628 +160,628 @@ class broker:
 
 
 
- #####  ####### ####### ####### ### #     #  #####   #####  
-#     # #          #       #     #  ##    # #     # #     # 
-#       #          #       #     #  # #   # #       #       
- #####  #####      #       #     #  #  #  # #  ####  #####  
-      # #          #       #     #  #   # # #     #       # 
-#     # #          #       #     #  #    ## #     # #     # 
- #####  #######    #       #    ### #     #  #####   #####  
+#  #####  ####### ####### ####### ### #     #  #####   #####  
+# #     # #          #       #     #  ##    # #     # #     # 
+# #       #          #       #     #  # #   # #       #       
+#  #####  #####      #       #     #  #  #  # #  ####  #####  
+#       # #          #       #     #  #   # # #     #       # 
+# #     # #          #       #     #  #    ## #     # #     # 
+#  #####  #######    #       #    ### #     #  #####   #####  
                                                             
-    def get_global_settings(self):
-        """
-        Get the global settings from the config file in the root dir, adding the settings to self.settings
+#     def get_global_settings(self):
+#         """
+#         Get the global settings from the config file in the root dir, adding the settings to self.settings
                 
-        Args:
-            None
+#         Args:
+#             None
 
-        Returns:
-            None
-        """
-        log.debug('Updating settings from config file at {}/ddmq.yaml'.format(self.root))
-        self.update_settings(os.path.join(self.root, 'ddmq.yaml'))
-
-
-    def get_queue_settings(self, queue):
-        """
-        Get settings from a config file from a specified queue dir, , adding the settings to self.settings
-
-        Args:
-            queue:  name of the queue to get the settings from
-
-        Returns:
-            None
-        """
-        log.debug('Updating settings from config file at {}/ddmq.yaml'.format(os.path.join(self.root, queue)))
-        self.update_settings(os.path.join(self.root, queue, 'ddmq.yaml'))
+#         Returns:
+#             None
+#         """
+#         log.debug('Updating settings from config file at {}/ddmq.yaml'.format(self.root))
+#         self.update_settings(os.path.join(self.root, 'ddmq.yaml'))
 
 
-    def update_settings(self, path):
-        """
-        Reads the settings from a config file and overrides the settings already in memory
+#     def get_queue_settings(self, queue):
+#         """
+#         Get settings from a config file from a specified queue dir, , adding the settings to self.settings
 
-        Args:
-            path:   path to the config file to read
+#         Args:
+#             queue:  name of the queue to get the settings from
 
-        Returns:
-            None
-        """
-
-        # read the config file and update the settings dict
-        with open(path, 'r') as settings_handle:
-            try:
-                self.settings.update(yaml.load(settings_handle))
-            # if the yaml file is empty, load will return None
-            except TypeError:
-                pass
+#         Returns:
+#             None
+#         """
+#         log.debug('Updating settings from config file at {}/ddmq.yaml'.format(os.path.join(self.root, queue)))
+#         self.update_settings(os.path.join(self.root, queue, 'ddmq.yaml'))
 
 
+#     def update_settings(self, path):
+#         """
+#         Reads the settings from a config file and overrides the settings already in memory
 
-    def update_settings_file(self, path, package):
-        """
-        Update the settings in a config file at the specified path
+#         Args:
+#             path:   path to the config file to read
+
+#         Returns:
+#             None
+#         """
+
+#         # read the config file and update the settings dict
+#         with open(path, 'r') as settings_handle:
+#             try:
+#                 self.settings.update(yaml.load(settings_handle))
+#             # if the yaml file is empty, load will return None
+#             except TypeError:
+#                 pass
+
+
+
+#     def update_settings_file(self, path, package):
+#         """
+#         Update the settings in a config file at the specified path
         
-        Args:
-            path:       path to the config file to be written to
-            package:    a dict containging the changes to the config file
+#         Args:
+#             path:       path to the config file to be written to
+#             package:    a dict containging the changes to the config file
 
-        Returns:
-            None
-        """
+#         Returns:
+#             None
+#         """
 
-        log.debug('Updating config file at {}/ddmq.yaml'.format(path))
+#         log.debug('Updating config file at {}/ddmq.yaml'.format(path))
 
-        # load the current config file
-        try:
-            with open(os.path.join(path, 'ddmq.yaml'), 'r') as settings_handle:
-                current_settings = yaml.load(settings_handle)
-        except FileNotFoundError:
-            current_settings = {}
+#         # load the current config file
+#         try:
+#             with open(os.path.join(path, 'ddmq.yaml'), 'r') as settings_handle:
+#                 current_settings = yaml.load(settings_handle)
+#         except FileNotFoundError:
+#             current_settings = {}
 
-        # if the settings file is empty
-        if not current_settings:
-            current_settings = {}
+#         # if the settings file is empty
+#         if not current_settings:
+#             current_settings = {}
             
-        # update and write the new
-        with open(os.path.join(path, 'ddmq.yaml.intermediate'), 'w') as settings_handle:
-            current_settings.update(package)
-            settings_handle.write(yaml.dump(current_settings, default_flow_style=False))
+#         # update and write the new
+#         with open(os.path.join(path, 'ddmq.yaml.intermediate'), 'w') as settings_handle:
+#             current_settings.update(package)
+#             settings_handle.write(yaml.dump(current_settings, default_flow_style=False))
         
-        # replace the old settings file with the new
-        os.rename(os.path.join(path, 'ddmq.yaml.intermediate'), os.path.join(path, 'ddmq.yaml'))
+#         # replace the old settings file with the new
+#         os.rename(os.path.join(path, 'ddmq.yaml.intermediate'), os.path.join(path, 'ddmq.yaml'))
 
 
 
 
 
- #####  #       #######    #    #     # ### #     #  #####  
-#     # #       #         # #   ##    #  #  ##    # #     # 
-#       #       #        #   #  # #   #  #  # #   # #       
-#       #       #####   #     # #  #  #  #  #  #  # #  #### 
-#       #       #       ####### #   # #  #  #   # # #     # 
-#     # #       #       #     # #    ##  #  #    ## #     # 
- #####  ####### ####### #     # #     # ### #     #  #####  
+#  #####  #       #######    #    #     # ### #     #  #####  
+# #     # #       #         # #   ##    #  #  ##    # #     # 
+# #       #       #        #   #  # #   #  #  # #   # #       
+# #       #       #####   #     # #  #  #  #  #  #  # #  #### 
+# #       #       #       ####### #   # #  #  #   # # #     # 
+# #     # #       #       #     # #    ##  #  #    ## #     # 
+#  #####  ####### ####### #     # #     # ### #     #  #####  
 
-    def clean(self, queue, get_queue_settings=True, force=False):
-        """
-        Clean out expired message from a specified queue
+#     def clean(self, queue, get_queue_settings=True, force=False):
+#         """
+#         Clean out expired message from a specified queue
         
-        Args:
-            queue:                  name of the queue to clean
-            get_queue_settings:     if True, the queue specific settings will be loaded before cleaning
+#         Args:
+#             queue:                  name of the queue to clean
+#             get_queue_settings:     if True, the queue specific settings will be loaded before cleaning
 
-        Returns:
-            True if everything goes according to plan, False if no cleaning was done
-        """
+#         Returns:
+#             True if everything goes according to plan, False if no cleaning was done
+#         """
 
-        # get the queue settings
-        if get_queue_settings:
-            self.get_queue_settings(queue)
+#         # get the queue settings
+#         if get_queue_settings:
+#             self.get_queue_settings(queue)
 
-        # only proceede if enough time as passed since last cleaning, unless forced
-        if not force and (not self.settings['cleaned'] < int(time.time())-60):
-            return False
+#         # only proceede if enough time as passed since last cleaning, unless forced
+#         if not force and (not self.settings['cleaned'] < int(time.time())-60):
+#             return False
         
-        log.info('Cleaning {}'.format(queue))
+#         log.info('Cleaning {}'.format(queue))
 
-        # list all files in queues work folder
-        # try:
-        messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*')
+#         # list all files in queues work folder
+#         # try:
+#         messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*')
 
-        # for each message file
-        for msg_filename in messages:
+#         # for each message file
+#         for msg_filename in messages:
 
-            # handle messages that have expired
-            msg_expiry_time = int(msg_filename.split('.')[0])
-            if msg_expiry_time < int(time.time()):
+#             # handle messages that have expired
+#             msg_expiry_time = int(msg_filename.split('.')[0])
+#             if msg_expiry_time < int(time.time()):
 
-                # construct the file path
-                msg_filepath = os.path.join(self.root, queue, 'work', msg_filename)
+#                 # construct the file path
+#                 msg_filepath = os.path.join(self.root, queue, 'work', msg_filename)
 
-                try:
-                    # load the message from the file
-                    msg = self.get_message(msg_filepath)
-                except (FileNotFoundError, IOError) as e:
-                    # race conditions could cause files being removed since the listdir was run
-                    print("Warning: while cleaning, message file {} was missing. This could be due to another process operating on the queue at the same time. It should be pretty rare, so if it happens often it could be some other problem causing it.".format(msg_filepath))
-                    continue
+#                 try:
+#                     # load the message from the file
+#                     msg = self.get_message(msg_filepath)
+#                 except (FileNotFoundError, IOError) as e:
+#                     # race conditions could cause files being removed since the listdir was run
+#                     print("Warning: while cleaning, message file {} was missing. This could be due to another process operating on the queue at the same time. It should be pretty rare, so if it happens often it could be some other problem causing it.".format(msg_filepath))
+#                     continue
 
-                # requeue if it should be
-                if msg.requeue:
+#                 # requeue if it should be
+#                 if msg.requeue:
 
-                    # change priority to default value
-                    msg.priority = self.settings['requeue_prio']
+#                     # change priority to default value
+#                     msg.priority = self.settings['requeue_prio']
 
-                    # check if custom requeue prio is set
-                    if type(msg.requeue) == int:
-                        msg.priority = msg.requeue
+#                     # check if custom requeue prio is set
+#                     if type(msg.requeue) == int:
+#                         msg.priority = msg.requeue
 
-                    # unless the requeue limit has been reached
-                    if not msg.requeue_limit or msg.requeue_counter < msg.requeue_limit:
+#                     # unless the requeue limit has been reached
+#                     if not msg.requeue_limit or msg.requeue_counter < msg.requeue_limit:
                         
-                        # requeue the message
-                        self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, requeue_counter=msg.requeue_counter+1, requeue_limit=msg.requeue_limit, clean=False)
+#                         # requeue the message
+#                         self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, requeue_counter=msg.requeue_counter+1, requeue_limit=msg.requeue_limit, clean=False)
 
-                # then delete the old message file
-                os.remove(os.path.join(self.root, queue, 'work', msg_filename))
+#                 # then delete the old message file
+#                 os.remove(os.path.join(self.root, queue, 'work', msg_filename))
         
-        # update the timestamp for when the queue was last cleaned
-        self.update_settings_file(os.path.join(self.root, queue), {'cleaned':int(time.time())})
-        return True
+#         # update the timestamp for when the queue was last cleaned
+#         self.update_settings_file(os.path.join(self.root, queue), {'cleaned':int(time.time())})
+#         return True
 
 
-    def clean_all(self):
-        """
-        Clean all the queues in the root director
+#     def clean_all(self):
+#         """
+#         Clean all the queues in the root director
         
-        Args:
-            None
+#         Args:
+#             None
 
-        Returns:
-            None
-        """
+#         Returns:
+#             None
+#         """
 
-        log.info('Cleaning all queues')
+#         log.info('Cleaning all queues')
 
-        # list all queues
-        for queue in self.list_queues():
+#         # list all queues
+#         for queue in self.list_queues():
 
-            # clean the queue
-            self.clean(queue)
-
-
+#             # clean the queue
+#             self.clean(queue)
 
 
 
 
- #####  #     # ####### #     # #######    ####### ######   #####  
-#     # #     # #       #     # #          #     # #     # #     # 
-#     # #     # #       #     # #          #     # #     # #       
-#     # #     # #####   #     # #####      #     # ######   #####  
-#   # # #     # #       #     # #          #     # #             # 
-#    #  #     # #       #     # #          #     # #       #     # 
- #### #  #####  #######  #####  #######    ####### #        #####  
 
 
-    def list_queues(self):
-        """
-        Generate a list of all valid queues (subdirectories with ddmq.yaml files in them) in the root folder
+#  #####  #     # ####### #     # #######    ####### ######   #####  
+# #     # #     # #       #     # #          #     # #     # #     # 
+# #     # #     # #       #     # #          #     # #     # #       
+# #     # #     # #####   #     # #####      #     # ######   #####  
+# #   # # #     # #       #     # #          #     # #             # 
+# #    #  #     # #       #     # #          #     # #       #     # 
+#  #### #  #####  #######  #####  #######    ####### #        #####  
+
+
+#     def list_queues(self):
+#         """
+#         Generate a list of all valid queues (subdirectories with ddmq.yaml files in them) in the root folder
         
-        Args:
-            None
+#         Args:
+#             None
 
-        Returns:
-            a list of names of valid queues
-        """
+#         Returns:
+#             a list of names of valid queues
+#         """
 
-        log.debug('Getting queue list')
+#         log.debug('Getting queue list')
 
-        queues = []
-        # list all queues
-        for queue in sorted(os.listdir(self.root)):
+#         queues = []
+#         # list all queues
+#         for queue in sorted(os.listdir(self.root)):
 
-            # skip files
-            if not os.path.isdir(os.path.join(self.root, queue)):
-                continue
+#             # skip files
+#             if not os.path.isdir(os.path.join(self.root, queue)):
+#                 continue
 
-            # save directories that are initiated queues
-            if self.check_dir(os.path.join(self.root, queue)):
-                queues.append(queue)
+#             # save directories that are initiated queues
+#             if self.check_dir(os.path.join(self.root, queue)):
+#                 queues.append(queue)
         
-        return queues
+#         return queues
 
 
-    def get_message_list(self, queue):
-        """ 
-        Gets a list of all messages in the specified queue
+#     def get_message_list(self, queue):
+#         """ 
+#         Gets a list of all messages in the specified queue
 
-        Args:
-            queue:  name of the queue to get messages from
+#         Args:
+#             queue:  name of the queue to get messages from
 
-        Returns:
-            returns 2 lists of file names. The first is the list of all messages still waiting in the queue and the second is a list of all the messages in the queue's work directory
-        """
+#         Returns:
+#             returns 2 lists of file names. The first is the list of all messages still waiting in the queue and the second is a list of all the messages in the queue's work directory
+#         """
 
-        log.debug('Listing messages in queue {}'.format(queue))
+#         log.debug('Listing messages in queue {}'.format(queue))
         
-        # list all files in queue folder
-        # try:
-        messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
-        # except (FileNotFoundError, OSError) as e:
-        #     messages = []
+#         # list all files in queue folder
+#         # try:
+#         messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
+#         # except (FileNotFoundError, OSError) as e:
+#         #     messages = []
 
-        # list all files in queue work folder
-        # try:
-        work_messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*')
-        # except (FileNotFoundError, OSError) as e:
-        #     # the work folder is not really needed to be able to publish messages, and a missing work folder will be handled by the consume function if needed
-        #     work_messages = []
+#         # list all files in queue work folder
+#         # try:
+#         work_messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*')
+#         # except (FileNotFoundError, OSError) as e:
+#         #     # the work folder is not really needed to be able to publish messages, and a missing work folder will be handled by the consume function if needed
+#         #     work_messages = []
 
-        return messages, work_messages
+#         return messages, work_messages
 
 
-    def delete_queue(self, queue):
-        """
-        Delete a specified queue
+#     def delete_queue(self, queue):
+#         """
+#         Delete a specified queue
         
-        Args:
-            queue:  name of the queue to delete
+#         Args:
+#             queue:  name of the queue to delete
 
-        Returns:
-            True if everything goes according to plan
-        """
+#         Returns:
+#             True if everything goes according to plan
+#         """
 
-        log.info('Deleting queue {}'.format(queue))
+#         log.info('Deleting queue {}'.format(queue))
 
-        # gee, don't want to mess this up, do we..
-        # remove all ddmq files from the work folder if it exists
-        try:
-            for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*'):
-                os.remove(os.path.join(self.root, queue, 'work', msg))
-            # remove the work dir itself
-            os.rmdir(os.path.join(self.root, queue, 'work'))
-        except (FileNotFoundError, OSError) as e:
-            pass
+#         # gee, don't want to mess this up, do we..
+#         # remove all ddmq files from the work folder if it exists
+#         try:
+#             for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*'):
+#                 os.remove(os.path.join(self.root, queue, 'work', msg))
+#             # remove the work dir itself
+#             os.rmdir(os.path.join(self.root, queue, 'work'))
+#         except (FileNotFoundError, OSError) as e:
+#             pass
 
-        # remove all ddmq files in the queue folder
-        for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'):
-            os.remove(os.path.join(self.root, queue, msg))
+#         # remove all ddmq files in the queue folder
+#         for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'):
+#             os.remove(os.path.join(self.root, queue, msg))
         
-        # remove the queue settings file if existing
-        try:
-            os.remove(os.path.join(self.root, queue, 'ddmq.yaml'))
-            os.remove(os.path.join(self.root, queue, 'ddmq.yaml.intermediate'))
-        except (FileNotFoundError, OSError):
-            pass
+#         # remove the queue settings file if existing
+#         try:
+#             os.remove(os.path.join(self.root, queue, 'ddmq.yaml'))
+#             os.remove(os.path.join(self.root, queue, 'ddmq.yaml.intermediate'))
+#         except (FileNotFoundError, OSError):
+#             pass
 
-        try:
-            os.rmdir(os.path.join(self.root, queue))
-        except OSError as e:
-            raise OSError('{}   Files created outside of ddmq could be in there, aborting deletion.'.format(e))
+#         try:
+#             os.rmdir(os.path.join(self.root, queue))
+#         except OSError as e:
+#             raise OSError('{}   Files created outside of ddmq could be in there, aborting deletion.'.format(e))
 
-        return True
+#         return True
 
 
-    def create_queue(self, queue):
-        """
-        Create a specified queue
+#     def create_queue(self, queue):
+#         """
+#         Create a specified queue
         
-        Args:
-            queue:  name of the queue to create
+#         Args:
+#             queue:  name of the queue to create
 
-        Returns:
-            True if everything goes according to plan
-        """
+#         Returns:
+#             True if everything goes according to plan
+#         """
 
-        log.info('Creating queue {}'.format(queue))
+#         log.info('Creating queue {}'.format(queue))
 
-        # create the folders a queue needs
-        self.create_folder(os.path.join(self.root, queue))
-        self.create_folder(os.path.join(self.root, queue, 'work'))
-        open(os.path.join(self.root, queue, 'ddmq.yaml'), 'a').close()
-        return True
+#         # create the folders a queue needs
+#         self.create_folder(os.path.join(self.root, queue))
+#         self.create_folder(os.path.join(self.root, queue, 'work'))
+#         open(os.path.join(self.root, queue, 'ddmq.yaml'), 'a').close()
+#         return True
 
 
-    # def search_queue(self, queue, query):
-    #     """
-    #     Search the messages of a specified queue for the query term (NOT YET IMPLEMENTED)
+#     # def search_queue(self, queue, query):
+#     #     """
+#     #     Search the messages of a specified queue for the query term (NOT YET IMPLEMENTED)
         
-    #     Args:
-    #         queue:  name of the queue to search
-    #         query:  query to search for
-    #     Returns:
-    #         a list of all messages matching to query
-    #     """
+#     #     Args:
+#     #         queue:  name of the queue to search
+#     #         query:  query to search for
+#     #     Returns:
+#     #         a list of all messages matching to query
+#     #     """
 
-    #     log.info('Searching {} for "{}"'.format(queue, query))
+#     #     log.info('Searching {} for "{}"'.format(queue, query))
 
-    #     return True
+#     #     return True
 
 
-    # def delete_message(self, path):
-    #     """
-    #     Delete a specified message (NOT YET IMPLEMENTED)
+#     # def delete_message(self, path):
+#     #     """
+#     #     Delete a specified message (NOT YET IMPLEMENTED)
         
-    #     Args:
-    #         path:   path to the message to be deleted
+#     #     Args:
+#     #         path:   path to the message to be deleted
 
-    #     Returns:
-    #         None
-    #     """
+#     #     Returns:
+#     #         None
+#     #     """
 
-    #     log.info('Deleting message {} from {}'.format(id, queue))
+#     #     log.info('Deleting message {} from {}'.format(id, queue))
 
-    #     return True
+#     #     return True
 
 
-    def purge_queue(self, queue):
-        """
-        Purge the specified queue of all messages, but keep the queue folders and config file
+#     def purge_queue(self, queue):
+#         """
+#         Purge the specified queue of all messages, but keep the queue folders and config file
         
-        Args:
-            queue:  name of the queue to purge
+#         Args:
+#             queue:  name of the queue to purge
 
-        Returns:
-            a list of 2 numbers; the first is how many messages still waiting in the queue were deleted, and the second how many messages in the queues work directory that was deleted
-        """
+#         Returns:
+#             a list of 2 numbers; the first is how many messages still waiting in the queue were deleted, and the second how many messages in the queues work directory that was deleted
+#         """
 
-        log.info('Purging {}'.format(queue))
+#         log.info('Purging {}'.format(queue))
 
-        # init
-        removed = 0
-        removed_work = 0
+#         # init
+#         removed = 0
+#         removed_work = 0
 
-        # remove all ddmq files from the work folder if it exists
-        try:
-            for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*'):
-                os.remove(os.path.join(self.root, queue, 'work', msg))
-                removed_work += 1
-        except (FileNotFoundError, OSError) as e:
-            pass
+#         # remove all ddmq files from the work folder if it exists
+#         try:
+#             for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue, 'work')), '*.ddmq*'):
+#                 os.remove(os.path.join(self.root, queue, 'work', msg))
+#                 removed_work += 1
+#         except (FileNotFoundError, OSError) as e:
+#             pass
 
-        # remove all ddmq files in the queue folder
-        for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'):
-            os.remove(os.path.join(self.root, queue, msg))
-            removed += 1
+#         # remove all ddmq files in the queue folder
+#         for msg in fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'):
+#             os.remove(os.path.join(self.root, queue, msg))
+#             removed += 1
         
-        return removed, removed_work
+#         return removed, removed_work
 
 
-    def get_message(self, path):
-        """
-        Get a specified message
+#     def get_message(self, path):
+#         """
+#         Get a specified message
         
-        Args:
-            path:   path to the message to fetch
+#         Args:
+#             path:   path to the message to fetch
 
-        Returns:
-            the requested message
-        """
+#         Returns:
+#             the requested message
+#         """
 
-        log.debug('Fetching message {}'.format(path))
+#         log.debug('Fetching message {}'.format(path))
 
-        # load the message from the file
-        with open(path, 'r') as msg_handle:
-             return message.json2msg(json.load(msg_handle))
-
-
+#         # load the message from the file
+#         with open(path, 'r') as msg_handle:
+#              return message.json2msg(json.load(msg_handle))
 
 
-    def requeue_message(self, path, msg=None):
-        """
-        Requeue a specified message
+
+
+#     def requeue_message(self, path, msg=None):
+#         """
+#         Requeue a specified message
         
-        Args:
-            path:   path to the message to requeue
+#         Args:
+#             path:   path to the message to requeue
 
-        Returns:
-            True if everything goes according to plan
-        """
+#         Returns:
+#             True if everything goes according to plan
+#         """
 
-        log.debug('Requeuing message {}'.format(path))
+#         log.debug('Requeuing message {}'.format(path))
 
-        # load the message from the file
-        if not msg:
-            msg = self.get_message(path)
+#         # load the message from the file
+#         if not msg:
+#             msg = self.get_message(path)
 
-        # requeue if it should be
+#         # requeue if it should be
 
-        # change priority to default value
-        msg.priority = self.settings['requeue_prio']
+#         # change priority to default value
+#         msg.priority = self.settings['requeue_prio']
 
-        # check if custom requeue prio is set
-        if type(msg.requeue) == int:
-            msg.priority = msg.requeue
+#         # check if custom requeue prio is set
+#         if type(msg.requeue) == int:
+#             msg.priority = msg.requeue
 
-        # requeue the message
-        self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, requeue_counter=msg.requeue_counter+1, requeue_limit=msg.requeue_limit, clean=False)
+#         # requeue the message
+#         self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, requeue_counter=msg.requeue_counter+1, requeue_limit=msg.requeue_limit, clean=False)
 
-        # then delete the old message file, assumes the message is consumed and located in the work dir
-        os.remove(os.path.join(self.root, msg.queue, 'work', os.path.split(path)[-1]))
+#         # then delete the old message file, assumes the message is consumed and located in the work dir
+#         os.remove(os.path.join(self.root, msg.queue, 'work', os.path.split(path)[-1]))
 
-        return True
+#         return True
 
 
-    # def update_message(self, path, update):
-    #     """
-    #     Update a specified message (NOT YET IMPLEMETED)
+#     # def update_message(self, path, update):
+#     #     """
+#     #     Update a specified message (NOT YET IMPLEMETED)
         
-    #     Args:
-    #         path:   path to the message to be updated
-    #         update: a dict containing the changes to be made
+#     #     Args:
+#     #         path:   path to the message to be updated
+#     #         update: a dict containing the changes to be made
 
-    #     Returns:
-    #         None
-    #     """
+#     #     Returns:
+#     #         None
+#     #     """
 
-    #     log.debug('Updating message {} in {}'.format(id, queue))
+#     #     log.debug('Updating message {} in {}'.format(id, queue))
 
-    #     return True
-
-
+#     #     return True
 
 
 
 
-#     # ####### ### #        #####  
-#     #    #     #  #       #     # 
-#     #    #     #  #       #       
-#     #    #     #  #        #####  
-#     #    #     #  #             # 
-#     #    #     #  #       #     # 
- #####     #    ### #######  #####  
 
-    def check_dir(self, path, only_conf=False):
-        """
-        Check if the directory contains a ddmq.yaml file to avoid littering non-queue dirs
+
+# #     # ####### ### #        #####  
+# #     #    #     #  #       #     # 
+# #     #    #     #  #       #       
+# #     #    #     #  #        #####  
+# #     #    #     #  #             # 
+# #     #    #     #  #       #     # 
+#  #####     #    ### #######  #####  
+
+#     def check_dir(self, path, only_conf=False):
+#         """
+#         Check if the directory contains a ddmq.yaml file to avoid littering non-queue dirs
         
-        Args:
-            path:       path to the directory to check
-            only_conf:  if True, only check if the ddmq.yaml file is present. If False, also check that there is a subdirectory called 'work'
+#         Args:
+#             path:       path to the directory to check
+#             only_conf:  if True, only check if the ddmq.yaml file is present. If False, also check that there is a subdirectory called 'work'
 
-        Returns:
-            None
-        """
-        if os.path.isfile(os.path.join(path, 'ddmq.yaml')):
+#         Returns:
+#             None
+#         """
+#         if os.path.isfile(os.path.join(path, 'ddmq.yaml')):
 
-            # if only the conf file is enough
-            if only_conf:
-                return True
+#             # if only the conf file is enough
+#             if only_conf:
+#                 return True
             
-            # check if there is a work dir too
-            if os.path.isdir(os.path.join(path, 'work')):
-                return True
+#             # check if there is a work dir too
+#             if os.path.isdir(os.path.join(path, 'work')):
+#                 return True
 
 
-    def get_queue_number(self, queue):
-        """
-        Generate the next incremental queue number for a specified queue
+#     def get_queue_number(self, queue):
+#         """
+#         Generate the next incremental queue number for a specified queue
         
-        Args:
-            queue:  name of the queue to generate the queue number for
+#         Args:
+#             queue:  name of the queue to generate the queue number for
 
-        Returns:
-            an int that is the next queue number in succession
-        """
+#         Returns:
+#             an int that is the next queue number in succession
+#         """
         
-        log.debug('Generating next queue number in {}'.format(queue))
+#         log.debug('Generating next queue number in {}'.format(queue))
 
-        # list all files in queue folder
-        try:
-            messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
-        except (FileNotFoundError, OSError) as e:
-            # try creating the queue if asked to
-            if self.create:
-                self.create_folder(os.path.join(self.root, queue))
-                self.create_folder(os.path.join(self.root, queue, 'work'))
-                messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
-            else:
-                # raise an error otherwise
-                raise FileNotFoundError("Unable to read from the queue folder: {}".format(e))
+#         # list all files in queue folder
+#         try:
+#             messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
+#         except (FileNotFoundError, OSError) as e:
+#             # try creating the queue if asked to
+#             if self.create:
+#                 self.create_folder(os.path.join(self.root, queue))
+#                 self.create_folder(os.path.join(self.root, queue, 'work'))
+#                 messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
+#             else:
+#                 # raise an error otherwise
+#                 raise FileNotFoundError("Unable to read from the queue folder: {}".format(e))
         
-        # init
-        max_queue_number = 0
+#         # init
+#         max_queue_number = 0
 
-        # for each file
-        for msg in sorted(messages):
+#         # for each file
+#         for msg in sorted(messages):
 
-            # get the max queue number at the moment
-            current_queue_number = int(os.path.basename(msg).split('.')[1])
-            if current_queue_number > max_queue_number:
-                max_queue_number = current_queue_number
+#             # get the max queue number at the moment
+#             current_queue_number = int(os.path.basename(msg).split('.')[1])
+#             if current_queue_number > max_queue_number:
+#                 max_queue_number = current_queue_number
             
-        return max_queue_number+1
+#         return max_queue_number+1
 
 
-    def create_folder(self, path):
-        """
-        Create a folder at a specified path and make sure the user can rwx the folder
+#     def create_folder(self, path):
+#         """
+#         Create a folder at a specified path and make sure the user can rwx the folder
         
-        Args:
-            path:   path to the directory to be created
+#         Args:
+#             path:   path to the directory to be created
 
-        Returns:
-            None
-        """
+#         Returns:
+#             None
+#         """
         
-        log.info('Creating folder: {}'.format(path))
+#         log.info('Creating folder: {}'.format(path))
 
-        # create the directory recursivly and set correct permissions
-        Path(path).mkdir(exist_ok=self.create)
-        # st = os.stat(path) # fetch current permissions
-        # os.chmod(path, st.st_mode | stat.S_IRWXU) # add u+rwx to the folder, leaving g and o as they are
-
-
+#         # create the directory recursivly and set correct permissions
+#         Path(path).mkdir(exist_ok=self.create)
+#         # st = os.stat(path) # fetch current permissions
+#         # os.chmod(path, st.st_mode | stat.S_IRWXU) # add u+rwx to the folder, leaving g and o as they are
 
 
 
 
-### #     # ####### ####### ######     #     #####  ####### 
- #  ##    #    #    #       #     #   # #   #     #    #    
- #  # #   #    #    #       #     #  #   #  #          #    
- #  #  #  #    #    #####   ######  #     # #          #    
- #  #   # #    #    #       #   #   ####### #          #    
- #  #    ##    #    #       #    #  #     # #     #    #    
-### #     #    #    ####### #     # #     #  #####     #    
 
-    def publish(self, queue, msg_text=None, priority=None, clean=True, requeue=False, requeue_prio=None, timeout=None, requeue_counter=0, requeue_limit=None):
-        """
-        Publish a message to a queue
+
+# ### #     # ####### ####### ######     #     #####  ####### 
+#  #  ##    #    #    #       #     #   # #   #     #    #    
+#  #  # #   #    #    #       #     #  #   #  #          #    
+#  #  #  #  #    #    #####   ######  #     # #          #    
+#  #  #   # #    #    #       #   #   ####### #          #    
+#  #  #    ##    #    #       #    #  #     # #     #    #    
+# ### #     #    #    ####### #     # #     #  #####     #    
+
+#     def publish(self, queue, msg_text=None, priority=None, clean=True, requeue=False, requeue_prio=None, timeout=None, requeue_counter=0, requeue_limit=None):
+#         """
+#         Publish a message to a queue
         
-        Args:
-            queue:          name of the queue to publish to
-            msg_text:       the actual message
-            priority:       the priority of the message (default 999). Lower number means higher priority when processing
-            clean:          if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just publish the message right away and not bother doing any cleaning first (faster).
-            requeue:        if True, the message will be requeud after it expires. If False it will just be deleted.
-            requeue_prio:   if set (int), the message will get this priority when requeued. Default is 0, meaning requeued messages will be put first in the queue.
-            timeout:        if set (int), will override the global and queue specific default setting for how many seconds a message expires after.
+#         Args:
+#             queue:          name of the queue to publish to
+#             msg_text:       the actual message
+#             priority:       the priority of the message (default 999). Lower number means higher priority when processing
+#             clean:          if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just publish the message right away and not bother doing any cleaning first (faster).
+#             requeue:        if True, the message will be requeud after it expires. If False it will just be deleted.
+#             requeue_prio:   if set (int), the message will get this priority when requeued. Default is 0, meaning requeued messages will be put first in the queue.
+#             timeout:        if set (int), will override the global and queue specific default setting for how many seconds a message expires after.
 
-        Returns:
-            a copy of the message published
-        """
+#         Returns:
+#             a copy of the message published
+#         """
 
-        log.info('Publishing message to {}'.format(queue))
+#         log.info('Publishing message to {}'.format(queue))
 
-        # get queue specific settings
-        self.get_queue_settings(queue)
+#         # get queue specific settings
+#         self.get_queue_settings(queue)
 
-        # clean the queue unless asked not to
-        if clean:
-            self.clean(queue, get_queue_settings=False)
+#         # clean the queue unless asked not to
+#         if clean:
+#             self.clean(queue, get_queue_settings=False)
 
-        # if no message is given, set it to an empty string
-        if not msg_text:
-            msg_text = ''
+#         # if no message is given, set it to an empty string
+#         if not msg_text:
+#             msg_text = ''
 
-        # check if priority is not set
-        if not priority:
-            priority = 999
-        # if it is set, make sure it't not negative
-        else:
-            if priority < 0:
-                raise ValueError('Warning, priority set to less than 0 (priority={}). Negative numbers will be sorted in the wrong order when working with messages.'.format(priority))
+#         # check if priority is not set
+#         if not priority:
+#             priority = 999
+#         # if it is set, make sure it't not negative
+#         else:
+#             if priority < 0:
+#                 raise ValueError('Warning, priority set to less than 0 (priority={}). Negative numbers will be sorted in the wrong order when working with messages.'.format(priority))
 
-        # check if requeue prio is set and send that value if it is
-        if requeue_prio:
-            requeue = requeue_prio
+#         # check if requeue prio is set and send that value if it is
+#         if requeue_prio:
+#             requeue = requeue_prio
 
-        # init a new message object
-        msg = message(message=msg_text, queue=queue, priority=priority, requeue=requeue, timeout=timeout, requeue_counter=requeue_counter, requeue_limit=requeue_limit)
+#         # init a new message object
+#         msg = message(message=msg_text, queue=queue, priority=priority, requeue=requeue, timeout=timeout, requeue_counter=requeue_counter, requeue_limit=requeue_limit)
 
-        # get the next queue number
-        msg.queue_number = self.get_queue_number(queue)
+#         # get the next queue number
+#         msg.queue_number = self.get_queue_number(queue)
 
-        # generate message id
-        msg.id = uuid.uuid4().hex
-        msg.filename = os.path.join(queue, '{}.{}.ddmq{}'.format(msg.priority, msg.queue_number, msg.id))
+#         # generate message id
+#         msg.id = uuid.uuid4().hex
+#         msg.filename = os.path.join(queue, '{}.{}.ddmq{}'.format(msg.priority, msg.queue_number, msg.id))
 
-        # write the message to file
-        msg_filepath = os.path.join(self.root, msg.filename)
-        with open(msg_filepath, 'w') as message_file:
-            message_file.write(msg.msg2json())
+#         # write the message to file
+#         msg_filepath = os.path.join(self.root, msg.filename)
+#         with open(msg_filepath, 'w') as message_file:
+#             message_file.write(msg.msg2json())
 
-        return msg
+#         return msg
 
 
 
