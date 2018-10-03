@@ -20,9 +20,8 @@
    :maxdepth: 2
    :caption: Submodules:
 
-   message
    broker
-   
+   message
 
 
 
