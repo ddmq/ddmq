@@ -974,6 +974,8 @@ class broker:
 def view(args=None):
     """
     Handle the command-line sub-command view
+    Usage:
+    ddmq view [-hfnjvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -1112,6 +1114,8 @@ def view(args=None):
 def create(args=None):
     """
     Handle the command-line sub-command create
+    Usage:
+    ddmq create [-hfvds] <root> <queue1>[,<queue2>,...,<queueN>]
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -1187,6 +1191,8 @@ def create(args=None):
 def delete(args=None):
     """
     Handle the command-line sub-command delete
+    Usage:
+    ddmq delete [-hfvds] <root> <queue1>[,<queue2>,...,<queueN>]
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -1257,6 +1263,8 @@ def delete(args=None):
 def publish(args=None):
     """
     Handle the command-line sub-command publish
+    Usage:
+    ddmq publish [options] <root> <queue> \"<message>\"
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -1339,6 +1347,8 @@ def publish(args=None):
 def consume(args=None):
     """
     Handle the command-line sub-command consume
+    Usage:
+    ddmq consume [-hfnCvd] [--format <plain|json|yaml>] <root> <queue>
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -1409,6 +1419,8 @@ def consume(args=None):
 def ack(args=None):
     """
     Handle the command-line sub-command ack
+    Usage:
+    ddmq ack [-hfnCvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -1460,6 +1472,8 @@ def ack(args=None):
 def nack(args=None):
     """
     Handle the command-line sub-command nack
+    Usage:
+    ddmq nack [-hfnCvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -1514,6 +1528,8 @@ def nack(args=None):
 def purge(args=None):
     """
     Handle the command-line sub-command purge
+    Usage:
+    ddmq purge [-hfvds] <root> <queue1>[,<queue2>,...,<queueN>]
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -1590,6 +1606,8 @@ def purge(args=None):
 def clean(args=None):
     """
     Handle the command-line sub-command clean
+    Usage:
+    ddmq clean [-hfvds] <root> <queue1>[,<queue2>,...,<queueN>]
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -1668,6 +1686,8 @@ def clean(args=None):
 def json_payload():
     """
     Handle the command-line sub-command json
+    Usage:
+    ddmq json \'<json object>\'
     
     Args:
         None
@@ -1743,7 +1763,25 @@ def json_payload():
 #     # #     # ### #     # 
 
 def main():
-    """Run the queue in a command-line mode"""
+    """Run the queue in a command-line mode
+
+Usage:    
+ddmq <command> [<args>]
+
+The available commands are:
+view      List queues and number of messages
+create    Create a queue
+delete    Delete a queue
+publish   Publish message to queue
+consume   Consume message from queue
+ack       Positivly acknowledge a message
+nack      Negativly acknowledge a message (possibly requeue)
+purge     Purge all messages from queue
+clean     Clean out expired messages from queue
+json      Run a command packaged as a JSON object
+
+For more info about the commands, run
+ddmq <command> -h"""
 
     parser = argparse.ArgumentParser(
         description='Command-line interface to Dead Drop Messaging Queue (ddmq).',
