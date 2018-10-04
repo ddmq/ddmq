@@ -68,16 +68,26 @@ except ImportError:
     pass
 
 
-version = "0.9.5"
+version = "0.9.6"
 
 
-class DdmqError(ValueError):
+class DdmqError(Exception):
     """
-    Helper class to pass custom error messages
+    Helper class to raise custom errors
     """
-    def __init__(self, arg):
-        self.strerror = arg
-        self.args = {arg}
+    def __init__(self, message, error):
+        """
+        Initialize a DdmqError object
+
+        Args:
+            message:    error message
+            error:      error code
+
+        Returns:
+            None
+        """
+        self.message = message
+        self.error = error
 
 
 
@@ -145,9 +155,9 @@ class broker:
 
             else:
                 if not os.path.isdir(root):
-                    raise DdmqError("missing")
+                    raise DdmqError("Root folder missing!", "missing")
                 else:
-                    raise DdmqError("uninitiated")
+                    raise DdmqError("Root folder uninitiated!", "uninitiated")
 
 
 
@@ -1031,10 +1041,10 @@ def create_broker(root, create=False, verbose=False, debug=False):
             sys.exit("Unable to write to the specified root directory ({}).".format(root))
 
     except DdmqError as e:
-        if e[0] == 'uninitiated':
+        if e.error == 'uninitiated':
             sys.exit("The specified root directory ({}) exists but is not initiated. Please run the same command with the (-f) force flag to try to create and initiate directories as needed.".format(root))
         
-        elif e[0] == 'missing':
+        elif e.error == 'missing':
             sys.exit("The specified root directory ({}) does not exist. Please run the same command with the (-f) force flag to try to create and initiate directories as needed.".format(root))
 
     return brokerObj

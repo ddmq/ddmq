@@ -7,7 +7,7 @@ https://ddmq.readthedocs.io
 
 *ddmq* is written in Python and should work for both Python 2.7+ and Python 3+, and can also be run as a command-line tool either by specifying the order as options and arguments, or by supplying the operation as a JSON object.
 
-*\* It could handle ~5000-6000 messages per minute on a SSD based laptop (~10% of RabbitMQ on the same hardware), but other processes competing for file access will impact performance.*
+*\* It could handle ~5000-6000 messages per minute (not via CLI) on a SSD based laptop (~10% of RabbitMQ on the same hardware), but other processes competing for file access will impact performance.*
 
 Requirements
 ------------
@@ -102,7 +102,7 @@ Python Module Usage
     # create the broker object and specify the path to the root directory
     # adding create=True to tell it to create and initiate both the root 
     # directory and queue directories if they don't already exist
-    b = broker('/tmp/ddmq', create=True)
+    b = ddmq.broker('/tmp/ddmq', create=True)
 
     # publish a message to the specified queue
     b.publish(queue='queue_name', msg_text='Hello World!')

@@ -103,7 +103,7 @@ Python Module Usage
     # create the broker object and specify the path to the root directory
     # adding create=True to tell it to create and initiate both the root 
     # directory and queue directories if they don't already exist
-    b = broker('/tmp/ddmq', create=True)
+    b = ddmq.broker('/tmp/ddmq', create=True)
 
     # publish a message to the specified queue
     b.publish(queue='queue_name', msg_text='Hello World!')
