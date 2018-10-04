@@ -59,7 +59,10 @@ import errno
 
 # import extra modules
 import yaml
-from .message import message
+try:
+    from .message import message
+except ValueError:
+    from message import message
 
 # development
 try:
@@ -1835,6 +1838,9 @@ json      Run a command packaged as a JSON object
 For more info about the commands, run
 ddmq <command> -h 
 
+Documentation:
+https://ddmq.readthedocs.io
+https://github.com/ddmq/ddmq
 ''')
     
     parser.add_argument('command', nargs='?', help='Subcommand to run')
