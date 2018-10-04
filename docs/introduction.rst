@@ -12,7 +12,7 @@ Dead Drop Messaging Queue
 
 Requirements
 ------------
-| Python 2.6+ or 3+, should work with both.
+| Python 2.7+ or 3+, should work with both.
 | Additional modules **required**: pyyaml
 | Additional modules *recommended*: beautifultable
 
