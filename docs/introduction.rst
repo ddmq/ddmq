@@ -54,6 +54,8 @@ Command-Line Usage
     delete    Delete a queue
     publish   Publish message to queue
     consume   Consume message from queue
+    ack       Positivly acknowledge a message
+    nack      Negativly acknowledge a message (possibly requeue)
     purge     Purge all messages from queue
     clean     Clean out expired messages from queue
     json      Run a command packaged as a JSON object
@@ -70,24 +72,25 @@ Command-Line Usage
     -h, --help     show this help message and exit
     -v, --version  print version
 
+
     
     Examples: 
     
     # create a new queue and publish a message to it
-    $ ddmq create -f /tmp testmq
-    $ ddmq publish /tmp testmq "Hello World!"
+    $ ddmq create -f /tmp/ddmq queue_name
+    $ ddmq publish /tmp/ddmq queue_name "Hello World!"
 
     # consume a message from a queue
-    $ ddmq consume /tmp testmq
+    $ ddmq consume /tmp/ddmq queue_name
 
     # view all queues present in the specified root directory
-    $ ddmq view /tmp
+    $ ddmq view /tmp/ddmq
 
     # remove all messages from a queue
-    $ ddmq purge /tmp testmq
+    $ ddmq purge /tmp/ddmq queue_name
 
     # delete a queue
-    $ ddmq delete /tmp testmq
+    $ ddmq delete /tmp/ddmq queue_name
 
 
 Python Module Usage
@@ -100,10 +103,10 @@ Python Module Usage
     # create the broker object and specify the path to the root directory
     # adding create=True to tell it to create and initiate both the root 
     # directory and queue directories if they don't already exist
-    b = broker('/path/to/rootdir', create=True)
+    b = broker('/tmp/ddmq', create=True)
 
     # publish a message to the specified queue
-    b.publish(queue='queue_name', message='Hello World!')
+    b.publish(queue='queue_name', msg_text='Hello World!')
 
     # consume a single message from the specified queue
     msg = b.consume(queue='queue_name')
@@ -139,7 +142,9 @@ In the example above there are two queues created (queue_one, queue_two) and bot
 Both the root directory and each queue subfolder will contain config files named *ddmq.yaml* that contains the settings to be used. The root's config file will override the default values, and the queue's config files will override both the default values and the root's config file. If a message is given specific settings when being published/consumed, these settings will override all the ddmq.yaml files.
 
 The message files themselves contain a JSON string with all the properties that make up a message object.
+
 ::
+
     {"priority": 999, "queue_number": 2, "requeue_counter": 0, "filename": "queue_one/999.2.ddmq1ed12af3760e4adfb62a9109f9b61214", "queue": "queue_one", "requeue_limit": null, "timeout": null, "message": "msg", "requeue": false, "id": "1ed12af3760e4adfb62a9109f9b61214"}
 
 
@@ -149,6 +154,7 @@ ddmq.yaml
 The config files in the root and queue directories in YAML format. The parameters that can be changed and their default values are:
 
 ::
+
     cleaned: 0              # epoch timestamp when the queue was last cleaned
     message_timeout: 600    # the number of seconds after which it will be considered expired, after a message is consumed
     priority: 999           # the default priority level of published messages. lower number = higher priority

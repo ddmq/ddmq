@@ -55,6 +55,7 @@ import argparse
 import logging as log
 import inspect
 import re
+import errno
 
 # import extra modules
 import yaml
@@ -67,7 +68,18 @@ except ImportError:
     pass
 
 
-version = "0.9.4"
+version = "0.9.5"
+
+
+class DdmqError(ValueError):
+    """
+    Helper class to pass custom error messages
+    """
+    def __init__(self, arg):
+        self.strerror = arg
+        self.args = {arg}
+
+
 
 
 class broker:
@@ -107,7 +119,7 @@ class broker:
                                 }
         self.global_settings = {}
         self.queue_settings = {}
-
+        
         # make sure the root dir is initiated
         if self.check_dir(root, only_conf=True):
 
@@ -117,6 +129,7 @@ class broker:
             self.global_settings.update(self.get_config_file())
 
         else:
+            
             # if it should be created
             if create:
 
@@ -124,13 +137,17 @@ class broker:
                 self.root = root
                 self.global_settings = self.default_settings.copy()
 
-                # create the root folder and initiate the config file
-                self.create_folder(root)
+                # create the root folder if needed and initiate the config file
+                if not os.path.isdir(root):
+                    self.create_folder(root)
                 open(os.path.join(root, 'ddmq.yaml'), 'w').close()
                 open(os.path.join(root, 'ddmq.yaml.example'), 'w').write(yaml.dump(self.default_settings, default_flow_style=False))
 
             else:
-                raise ValueError("Root dir not initiated ({}/ddmq.yaml missing).".format(root))
+                if not os.path.isdir(root):
+                    raise DdmqError("missing")
+                else:
+                    raise DdmqError("uninitiated")
 
 
 
@@ -738,7 +755,13 @@ class broker:
         log.info('Publishing message to {}'.format(queue))
 
         # load the queue's settings
-        self.get_settings(queue)
+        try:
+            self.get_settings(queue)
+        except (FileNotFoundError, IOError):
+            # create the queue if asked to
+            if self.create:
+                self.create_queue(queue)
+            self.get_settings(queue)
 
         # clean the queue unless asked not to
         if clean:
@@ -796,7 +819,13 @@ class broker:
         log.info('Consuming {} message(s) from {}'.format(n, queue))
 
         # load the queue's settings
-        self.get_settings(queue)
+        try:
+            self.get_settings(queue)
+        except (FileNotFoundError, IOError):
+            # create the queue if asked to
+            if self.create:
+                self.create_queue(queue)
+            self.get_settings(queue)
 
         # clean the queue unless asked not to
         if clean:
@@ -864,6 +893,9 @@ class broker:
         Returns:
             True if everything goes according to plan
         """
+
+        # load the queue's settings
+        self.get_settings(queue)
 
         # convert single message to a list if needed
         if type(msg_files) != list:
@@ -971,6 +1003,46 @@ class broker:
  #####  #     # ######      ####### ### #     # ####### 
 
 
+
+def create_broker(root, create=False, verbose=False, debug=False):
+    """
+    Helper function to create broker objects, printing correct error messages if failed
+    
+    Args:
+        root:       root directory
+        create:     True if missing folders should be created
+        verbose:    verbose progress reporting
+        debug:      even more verbose progress reporting
+
+    Returns:
+        a broker object
+    """
+
+    # create a broker object
+    try:
+        brokerObj = broker(root=root, create=create, verbose=verbose, debug=debug)
+    except OSError as e:
+        
+        # if the ddmq.yaml file is missing
+        if e.errno == errno.EEXIST:
+            sys.exit("The specified root directory ({}) exists but is not initiated. Please run the same command with the (-f) force flag to try to create and initiate directories as needed.".format(root))
+
+        elif e.errno == errno.EACCES:
+            sys.exit("Unable to write to the specified root directory ({}).".format(root))
+
+    except DdmqError as e:
+        if e[0] == 'uninitiated':
+            sys.exit("The specified root directory ({}) exists but is not initiated. Please run the same command with the (-f) force flag to try to create and initiate directories as needed.".format(root))
+        
+        elif e[0] == 'missing':
+            sys.exit("The specified root directory ({}) does not exist. Please run the same command with the (-f) force flag to try to create and initiate directories as needed.".format(root))
+
+    return brokerObj
+
+
+
+
+
 def view(args=None):
     """
     Handle the command-line sub-command view
@@ -1001,14 +1073,10 @@ def view(args=None):
 
         # now that we're inside a subcommand, ignore the first two arguments
         args = parser.parse_args(sys.argv[2:])
-
+    
     # create a broker object
-    try:
-        brokerObj = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
-    except ValueError:
-        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
-    except OSError:
-        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+    brokerObj = create_broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
+
 
     # readability
     print_format = args.format
@@ -1140,12 +1208,7 @@ def create(args=None):
     args = parser.parse_args(sys.argv[2:])
     
     # create a broker object
-    try:
-        brokerObj = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
-    except ValueError:
-        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
-    except OSError:
-        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+    brokerObj = create_broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
 
     # readability
     queues = args.queue
@@ -1217,12 +1280,7 @@ def delete(args=None):
     args = parser.parse_args(sys.argv[2:])
 
     # create a broker object
-    try:
-        brokerObj = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
-    except ValueError:
-        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
-    except OSError:
-        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+    brokerObj = create_broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
 
     # readability
     queues = args.queue
@@ -1296,12 +1354,7 @@ def publish(args=None):
     args = parser.parse_args(sys.argv[2:])
 
     # create a broker object
-    try:
-        brokerObj = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
-    except ValueError:
-        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
-    except OSError:
-        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+    brokerObj = create_broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
 
     # make sure the queue exists
     if not brokerObj.check_dir(os.path.join(brokerObj.root, args.queue)):
@@ -1379,12 +1432,7 @@ def consume(args=None):
             raise ValueError("Unknown format, {}. Valid formats are plain, json and yaml.")
 
     # create a broker object
-    try:
-        brokerObj = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
-    except ValueError:
-        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
-    except OSError:
-        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+    brokerObj = create_broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
 
     # consume the messages
     try:
@@ -1446,12 +1494,7 @@ def ack(args=None):
     args = parser.parse_args(sys.argv[2:])
 
     # create a broker object
-    try:
-        brokerObj = broker(root=args.root, verbose=args.v, debug=args.d)
-    except ValueError:
-        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
-    except OSError:
-        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+    brokerObj = create_broker(root=args.root, verbose=args.v, debug=args.d)
 
     # make the files to a list
     msg_files = args.msg_files.split(',')
@@ -1499,12 +1542,7 @@ def nack(args=None):
     args = parser.parse_args(sys.argv[2:])
 
     # create a broker object
-    try:
-        brokerObj = broker(root=args.root, verbose=args.v, debug=args.d)
-    except ValueError:
-        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
-    except OSError:
-        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+    brokerObj = create_broker(root=args.root, verbose=args.v, debug=args.d)
 
     # make the files to a list
     msg_files = args.msg_files.split(',')
@@ -1554,12 +1592,7 @@ def purge(args=None):
     args = parser.parse_args(sys.argv[2:])
 
     # create a broker object
-    try:
-        brokerObj = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
-    except ValueError:
-        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
-    except OSError:
-        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+    brokerObj = create_broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
 
     # readability
     queues = args.queue
@@ -1632,12 +1665,7 @@ def clean(args=None):
     args = parser.parse_args(sys.argv[2:])
 
     # create a broker object
-    try:
-        brokerObj = broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
-    except ValueError:
-        sys.exit("The specified root directory ({}) is not initiated. Please run the same command with the (-f) force flag to create and initiate directories as needed.".format(args.root))
-    except OSError:
-        sys.exit("Unable to write to the specified root directory ({}).".format(args.root))
+    brokerObj = create_broker(root=args.root, create=args.f, verbose=args.v, debug=args.d)
 
     # readability
     queues = args.queue
@@ -1729,10 +1757,6 @@ def json_payload():
     # apply the payload over the defaults
     options.update(payload)
 
-    Tracer()()
-
-    
-
     # transfer the options to the args object
     for key,val in options.items():
         vars(args)[key] = val
@@ -1744,7 +1768,6 @@ def json_payload():
 
 
 # TODO
-# def clean():
 # def search():
 # def remove():
 # def modify():

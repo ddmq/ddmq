@@ -41,21 +41,19 @@ Command-Line Usage
 
 ::
 
-    $ ddmq create -f /tmp testmq
-    $ ddmq publish /tmp testmq "Hello World!"
-    $ ddmq consume /tmp testmq
+    $ ddmq create -f /tmp/ddmq queue_name
+    $ ddmq publish /tmp/ddmq queue_name "Hello World!"
+    $ ddmq consume /tmp/ddmq queue_name
 
 Python Module Usage
 -------------------
 ::
 
     import ddmq
-    b = broker('/path/to/rootdir', create=True)
-    b.publish(queue='queue_name', message='Hello World!')
+    b = broker('/tmp/ddmq', create=True)
+    b.publish(queue='queue_name', msg_text='Hello World!')
     msg = b.consume(queue='queue_name')
     print(msg[0].message)
-
-
 
 
 

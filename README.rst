@@ -53,6 +53,8 @@ Command-Line Usage
     delete    Delete a queue
     publish   Publish message to queue
     consume   Consume message from queue
+    ack       Positivly acknowledge a message
+    nack      Negativly acknowledge a message (possibly requeue)
     purge     Purge all messages from queue
     clean     Clean out expired messages from queue
     json      Run a command packaged as a JSON object
@@ -69,24 +71,25 @@ Command-Line Usage
     -h, --help     show this help message and exit
     -v, --version  print version
 
+
     
     Examples: 
     
     # create a new queue and publish a message to it
-    $ ddmq create -f /tmp testmq
-    $ ddmq publish /tmp testmq "Hello World!"
+    $ ddmq create -f /tmp/ddmq queue_name
+    $ ddmq publish /tmp/ddmq queue_name "Hello World!"
 
     # consume a message from a queue
-    $ ddmq consume /tmp testmq
+    $ ddmq consume /tmp/ddmq queue_name
 
     # view all queues present in the specified root directory
-    $ ddmq view /tmp
+    $ ddmq view /tmp/ddmq
 
     # remove all messages from a queue
-    $ ddmq purge /tmp testmq
+    $ ddmq purge /tmp/ddmq queue_name
 
     # delete a queue
-    $ ddmq delete /tmp testmq
+    $ ddmq delete /tmp/ddmq queue_name
 
 
 Python Module Usage
@@ -99,10 +102,10 @@ Python Module Usage
     # create the broker object and specify the path to the root directory
     # adding create=True to tell it to create and initiate both the root 
     # directory and queue directories if they don't already exist
-    b = broker('/path/to/rootdir', create=True)
+    b = broker('/tmp/ddmq', create=True)
 
     # publish a message to the specified queue
-    b.publish(queue='queue_name', message='Hello World!')
+    b.publish(queue='queue_name', msg_text='Hello World!')
 
     # consume a single message from the specified queue
     msg = b.consume(queue='queue_name')
