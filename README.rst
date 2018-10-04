@@ -17,6 +17,7 @@ Requirements
 
 Installation
 ------------
+
 ::
 
     $ pip install ddmq
@@ -94,6 +95,7 @@ Command-Line Usage
 
 Python Module Usage
 -------------------
+
 ::
 
     # imports both the broker and message module
@@ -141,7 +143,9 @@ In the example above there are two queues created (queue_one, queue_two) and bot
 Both the root directory and each queue subfolder will contain config files named *ddmq.yaml* that contains the settings to be used. The root's config file will override the default values, and the queue's config files will override both the default values and the root's config file. If a message is given specific settings when being published/consumed, these settings will override all the ddmq.yaml files.
 
 The message files themselves contain a JSON string with all the properties that make up a message object.
+
 ::
+
     {"priority": 999, "queue_number": 2, "requeue_counter": 0, "filename": "queue_one/999.2.ddmq1ed12af3760e4adfb62a9109f9b61214", "queue": "queue_one", "requeue_limit": null, "timeout": null, "message": "msg", "requeue": false, "id": "1ed12af3760e4adfb62a9109f9b61214"}
 
 
@@ -151,6 +155,7 @@ ddmq.yaml
 The config files in the root and queue directories in YAML format. The parameters that can be changed and their default values are:
 
 ::
+
     cleaned: 0              # epoch timestamp when the queue was last cleaned
     message_timeout: 600    # the number of seconds after which it will be considered expired, after a message is consumed
     priority: 999           # the default priority level of published messages. lower number = higher priority
