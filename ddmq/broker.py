@@ -59,7 +59,7 @@ import errno
 
 # import extra modules
 import yaml
-from message import message
+from .message import message
 
 # development
 try:
@@ -68,7 +68,7 @@ except ImportError:
     pass
 
 
-version = "0.9.6"
+version = "0.9.7"
 
 
 class DdmqError(Exception):
