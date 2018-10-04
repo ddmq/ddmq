@@ -41,11 +41,6 @@ try:
 except NameError:
     FileNotFoundError = IOError
 
-try:
-  from pathlib import Path
-except ImportError:
-  from pathlib2 import Path  # python 2 backport
-
 
 # import standard modules
 import os
@@ -695,7 +690,7 @@ class broker:
 
     def create_folder(self, path):
         """
-        Create a folder at a specified path and make sure the user can rwx the folder
+        Create a folder at a specified path
         
         Args:
             path:   path to the directory to be created
@@ -706,11 +701,7 @@ class broker:
         
         log.info('Creating folder: {}'.format(path))
 
-        # create the directory recursivly and set correct permissions
-        Path(path).mkdir(exist_ok=self.create)
-        # st = os.stat(path) # fetch current permissions
-        # os.chmod(path, st.st_mode | stat.S_IRWXU) # add u+rwx to the folder, leaving g and o as they are
-
+        os.makedirs(path)
 
 
 
