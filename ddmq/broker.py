@@ -1838,7 +1838,7 @@ json      Run a command packaged as a JSON object
 For more info about the commands, run
 ddmq <command> -h 
 
-Documentation:
+Documentation and code:
 https://ddmq.readthedocs.io
 https://github.com/ddmq/ddmq
 ''')
