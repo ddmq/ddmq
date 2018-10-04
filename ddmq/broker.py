@@ -67,20 +67,13 @@ except ImportError:
     pass
 
 
-version = "0.8.3"
+version = "0.9.3"
 
 
 class broker:
     """
     Class to interact with messaging queues
     """
-
-    # default queue settings
-    settings =  {   'message_timeout': 600, 
-                    'cleaned':0,
-                    'requeue_prio': 0,
-                    }
-
 
     def __init__(self, root, create=False, verbose=False, debug=False):
         """
@@ -105,12 +98,23 @@ class broker:
             log.debug("Debug output.")
         log.debug('Initializing broker object')
 
+        # settings
+        self.default_settings = {  'message_timeout': 600, # the time in seconds after publishing a message expires
+                            'cleaned':0,            # epoch timestamp when a queue was last cleaned
+                            'priority':999,         # default message priority when published
+                            'requeue':True,         # True if messages that are nacked are to be requeued, False will delete them 
+                            'requeue_prio': 0,      # the priority requeued messages will have (0 = top priority)
+                                }
+        self.global_settings = {}
+        self.queue_settings = {}
+
         # make sure the root dir is initiated
         if self.check_dir(root, only_conf=True):
 
             self.create = create
             self.root = root
-            self.get_global_settings()
+            self.global_settings = self.default_settings.copy()
+            self.global_settings.update(self.get_config_file())
 
         else:
             # if it should be created
@@ -118,12 +122,13 @@ class broker:
 
                 self.create = create
                 self.root = root
+                self.global_settings = self.default_settings.copy()
 
                 # create the root folder and initiate the config file
                 self.create_folder(root)
-                open(os.path.join(root, 'ddmq.yaml'), 'a').close()
+                open(os.path.join(root, 'ddmq.yaml'), 'w').close()
+                open(os.path.join(root, 'ddmq.yaml.example'), 'w').write(yaml.dump(self.default_settings, default_flow_style=False))
 
-                self.get_global_settings()
             else:
                 raise ValueError("Root dir not initiated ({}/ddmq.yaml missing).".format(root))
 
@@ -163,87 +168,81 @@ class broker:
 #     # #          #       #     #  #    ## #     # #     # 
  #####  #######    #       #    ### #     #  #####   #####  
                                                             
-    def get_global_settings(self):
+    def get_config_file(self, queue=''):
         """
-        Get the global settings from the config file in the root dir, adding the settings to self.settings
+        Get the settings from the config file of a queue or the root dir
                 
         Args:
-            None
+            queue:  if empty, returns the config file from the root folder. If a queue name, will get the config file for that queue
 
         Returns:
-            None
+            A dict containing all the settings specified in the config file
         """
-        log.debug('Updating settings from config file at {}/ddmq.yaml'.format(self.root))
-        self.update_settings(os.path.join(self.root, 'ddmq.yaml'))
+
+        log.debug('Reading config file {}'.format(os.path.join(self.root, queue, 'ddmq.yaml')))
+
+        with open(os.path.join(self.root, queue, 'ddmq.yaml'), 'r') as settings_handle:
+            conf = yaml.load(settings_handle)
+            if not conf:
+                return {}
+            return conf
 
 
-    def get_queue_settings(self, queue):
+
+
+    def get_settings(self, queue):
         """
-        Get settings from a config file from a specified queue dir, , adding the settings to self.settings
-
+        Get the settings for the specified queue. Will try to give a cached version first, and if it is the first time the settings are requested it will read the settings from the config file and store the result
+                
         Args:
-            queue:  name of the queue to get the settings from
+            queue:  name of the queue to get settings for
 
         Returns:
             None
         """
-        log.debug('Updating settings from config file at {}/ddmq.yaml'.format(os.path.join(self.root, queue)))
-        self.update_settings(os.path.join(self.root, queue, 'ddmq.yaml'))
+        
+        log.debug('Updating settings from config file {}'.format(os.path.join(self.root, queue, 'ddmq.yaml')))
+
+        try:
+            return self.queue_settings[queue]
+        except KeyError:
+
+            # must be the first time the queue settings are requested, fetch them from file and store for later
+            with open(os.path.join(self.root, queue, 'ddmq.yaml'), 'r') as fh:
+                queue_settings = yaml.load(fh)
+                self.queue_settings[queue] = self.global_settings.copy()
+                self.queue_settings[queue].update(queue_settings)
+                return self.queue_settings[queue]
 
 
-    def update_settings(self, path):
+
+
+
+    def update_settings_file(self, queue='', package={}):
         """
-        Reads the settings from a config file and overrides the settings already in memory
-
-        Args:
-            path:   path to the config file to read
-
-        Returns:
-            None
-        """
-
-        # read the config file and update the settings dict
-        with open(path, 'r') as settings_handle:
-            try:
-                self.settings.update(yaml.load(settings_handle))
-            # if the yaml file is empty, load will return None
-            except TypeError:
-                pass
-
-
-
-    def update_settings_file(self, path, package):
-        """
-        Update the settings in a config file at the specified path
+        Update the settings in a config file for a specified queue or in the root dir
         
         Args:
-            path:       path to the config file to be written to
-            package:    a dict containging the changes to the config file
+            queue:   if empty, change the config in the root folder. If a queue name, will change the config for that queue
+            package: a dict containging the changes to the config file
 
         Returns:
             None
         """
 
-        log.debug('Updating config file at {}/ddmq.yaml'.format(path))
+        config_path = os.path.join(self.root, queue, 'ddmq.yaml')
+        log.debug('Updating config file {}'.format(config_path))
 
         # load the current config file
-        try:
-            with open(os.path.join(path, 'ddmq.yaml'), 'r') as settings_handle:
-                current_settings = yaml.load(settings_handle)
-        except FileNotFoundError:
-            current_settings = {}
+        current_settings = self.get_config_file(queue=queue)
 
-        # if the settings file is empty
-        if not current_settings:
-            current_settings = {}
-            
         # update and write the new
-        with open(os.path.join(path, 'ddmq.yaml.intermediate'), 'w') as settings_handle:
+        with open(config_path+'.intermediate', 'w') as settings_handle:
             current_settings.update(package)
             settings_handle.write(yaml.dump(current_settings, default_flow_style=False))
         
         # replace the old settings file with the new
-        os.rename(os.path.join(path, 'ddmq.yaml.intermediate'), os.path.join(path, 'ddmq.yaml'))
+        os.rename(config_path+'.intermediate', config_path)
 
 
 
@@ -257,27 +256,25 @@ class broker:
 #     # #       #       #     # #    ##  #  #    ## #     # 
  #####  ####### ####### #     # #     # ### #     #  #####  
 
-    def clean(self, queue, get_queue_settings=True, force=False):
+    def clean(self, queue, force=False):
         """
         Clean out expired message from a specified queue
         
         Args:
             queue:                  name of the queue to clean
-            get_queue_settings:     if True, the queue specific settings will be loaded before cleaning
 
         Returns:
             True if everything goes according to plan, False if no cleaning was done
         """
 
-        # get the queue settings
-        if get_queue_settings:
-            self.get_queue_settings(queue)
-
         # only proceede if enough time as passed since last cleaning, unless forced
-        if not force and (not self.settings['cleaned'] < int(time.time())-60):
+        if not force and (not self.queue_settings[queue]['cleaned'] < int(time.time())-60):
             return False
         
         log.info('Cleaning {}'.format(queue))
+
+        # load the queue's settings
+        self.get_settings(queue)
 
         # list all files in queues work folder
         # try:
@@ -305,7 +302,7 @@ class broker:
                 if msg.requeue:
 
                     # change priority to default value
-                    msg.priority = self.settings['requeue_prio']
+                    msg.priority = self.queue_settings[queue]['requeue_prio']
 
                     # check if custom requeue prio is set
                     if type(msg.requeue) == int:
@@ -321,7 +318,7 @@ class broker:
                 os.remove(os.path.join(self.root, queue, 'work', msg_filename))
         
         # update the timestamp for when the queue was last cleaned
-        self.update_settings_file(os.path.join(self.root, queue), {'cleaned':int(time.time())})
+        self.update_settings_file(queue, {'cleaned':int(time.time())})
         return True
 
 
@@ -473,7 +470,8 @@ class broker:
         # create the folders a queue needs
         self.create_folder(os.path.join(self.root, queue))
         self.create_folder(os.path.join(self.root, queue, 'work'))
-        open(os.path.join(self.root, queue, 'ddmq.yaml'), 'a').close()
+        with open(os.path.join(self.root, queue, 'ddmq.yaml'), 'w') as fh:
+                    fh.write(yaml.dump(self.default_settings, default_flow_style=False))
         return True
 
 
@@ -575,14 +573,19 @@ class broker:
 
         log.debug('Requeuing message {}'.format(path))
 
+        
+
         # load the message from the file
         if not msg:
             msg = self.get_message(path)
 
+        # load the queue's settings
+        self.get_settings(msg.queue)
+
         # requeue if it should be
 
         # change priority to default value
-        msg.priority = self.settings['requeue_prio']
+        msg.priority = self.queue_settings[msg.queue]['requeue_prio']
 
         # check if custom requeue prio is set
         if type(msg.requeue) == int:
@@ -734,12 +737,12 @@ class broker:
 
         log.info('Publishing message to {}'.format(queue))
 
-        # get queue specific settings
-        self.get_queue_settings(queue)
+        # load the queue's settings
+        self.get_settings(queue)
 
         # clean the queue unless asked not to
         if clean:
-            self.clean(queue, get_queue_settings=False)
+            self.clean(queue)
 
         # if no message is given, set it to an empty string
         if not msg_text:
@@ -747,7 +750,7 @@ class broker:
 
         # check if priority is not set
         if not priority:
-            priority = 999
+            priority = self.queue_settings[queue]['priority']
         # if it is set, make sure it't not negative
         else:
             if priority < 0:
@@ -792,12 +795,12 @@ class broker:
 
         log.info('Consuming {} message(s) from {}'.format(n, queue))
 
-        # get queue specific settings
-        self.get_queue_settings(queue)
+        # load the queue's settings
+        self.get_settings(queue)
 
         # clean the queue unless asked not to
         if clean:
-            self.clean(queue, get_queue_settings=False)
+            self.clean(queue)
 
         # set default value if missing
         if not n:
@@ -830,7 +833,7 @@ class broker:
             if msg.timeout:
                 message_timeout = int(time.time()) + msg.timeout
             else:    
-                message_timeout = int(time.time()) + self.settings['message_timeout']
+                message_timeout = int(time.time()) + self.queue_settings[queue]['message_timeout']
 
             # move to the work folder, adding the message expiry time to the file name
             msg_work_path = os.path.join(self.root, queue, 'work', '{}.{}'.format(message_timeout, msg_filename))

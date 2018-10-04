@@ -111,6 +111,39 @@ Python Module Usage
     # print the message contained
     print(msg[0].message)
 
+
+
+
+File Structure
+--------------
+The structure ddmq uses to handle the messages consists of a root directory, with subfolders for each created queue. The messages waiting in a queue are stored in the queue's folder, and messages that have been consumed but not yet acknowledged are stored in the queue's work directory.
+
+::
+
+    root/
+    ├── ddmq.yaml
+    ├── queue_one
+    │   ├── 999.3.ddmqfc24476c6708416caa2a101845dddd9a
+    │   ├── ddmq.yaml
+    │   └── work
+    │       ├── 1538638378.999.1.ddmq39eb64e1913143aa8d28d9158f089006
+    │       └── 1538638379.999.2.ddmq1ed12af3760e4adfb62a9109f9b61214
+    └── queue_two
+        ├── 999.1.ddmq6d8742dbde404d5ab556bf229151f66b
+        ├── 999.2.ddmq15463a6680f942489d54f1ec78a53673
+        ├── ddmq.yaml
+        └── work
+
+In the example above there are two queues created (queue_one, queue_two) and both have messages published to them. In queue_one there are two messages that have been consumed already, but not yet acknowledged (*acked*), so the messages are stored in the queue_one's work folder. As soon as a message is acked the message will be deleted by default. Messages that are negatively acknowledged (*nacked*) will be requeue by default.
+
+Both the root directory and each queue subfolder will contain config files named *ddmq.yaml* that contains the settings to be used. The root's config file will override the default values, and the queue's config files will override both the default values and the root's config file. If a message is given specific settings when being published/consumed, these settings will override all the ddmq.yaml files.
+
+
+
+ddmq.yaml
+---------
+
+
 Use case
 --------
 Since ddmq handles one file per message it will be much slower than other queues. A quick comparison with RabbitMQ showed that first publishing and then consuming 5000 messages is about 10x slower using ddmq (45s vs 4.5s). The point of ddmq is not performance, but to be used in environments where you can't run a server for some reason.
