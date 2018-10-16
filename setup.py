@@ -6,7 +6,7 @@ with open("README.rst", "r") as fh:
 
 setuptools.setup(
     name="ddmq",
-    version="0.9.7",
+    version="0.9.9",
     author="Martin Dahlö",
     author_email="m.dahlo@gmail.com",
     description="A file based serverless messaging queue",
@@ -25,7 +25,7 @@ setuptools.setup(
     ],
 
     entry_points={
-        'console_scripts': ['ddmq = ddmq.broker:main',
+        'console_scripts': ['ddmq = ddmq.cli:main',
         ],
     }
 )

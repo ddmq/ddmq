@@ -57,6 +57,17 @@ Python Module Usage
 
 
 
+Troubleshooting
+---------------
+*"ddmq: command not found" when trying to run the command-line tool*
+This is likely because the location where pip installs the *ddmq* executable is not in your PATH. Run the following commands to print out the location where it is installed:
+
+::
+
+import ddmq
+ddmq.get_ddmq_bin_path()
+
+
 .. _intro:
 
 .. toctree::
