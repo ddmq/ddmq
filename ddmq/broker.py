@@ -7,6 +7,7 @@ You define a broker by supplying at least a root directory, for example
 
 >>> b = ddmq.broker('../temp/ddmq', create=True)
 >>> print(b)
+create = True
 default_settings = {'priority': 999, 'requeue': True, 'requeue_prio': 0, 'message_timeout': 600, 'cleaned': 0}
 global_settings = {'priority': 999, 'requeue': True, 'requeue_prio': 0, 'message_timeout': 600, 'cleaned': 0}
 queue_settings = {}
@@ -27,7 +28,7 @@ timeout = None
 
 
 >>> msg = b.consume('queue_name')
-[filename = 1539702458.999.1.ddmq89723438b9d0403c91943f4ffaf8ba35
+filename = 1539702458.999.1.ddmq89723438b9d0403c91943f4ffaf8ba35
 id = 89723438b9d0403c91943f4ffaf8ba35
 message = Hello World!
 priority = 999
@@ -36,10 +37,10 @@ queue_number = 1
 requeue = False
 requeue_counter = 0
 requeue_limit = None
-timeout = None]
+timeout = None
 
 
->>> print(msg[0].message)
+>>> print(msg.message)
 Hello World!
 
 """
@@ -60,6 +61,7 @@ import json
 import time
 import fnmatch
 import logging as log
+import re
 
 # import extra modules
 import yaml
@@ -68,14 +70,10 @@ try:
 except ValueError:
     from message import message
 
-# development
-try:
-    from IPython.core.debugger import Tracer
-except ImportError:
-    pass
+# from IPython.core.debugger import Tracer
+# Tracer()()
 
-
-version = "0.9.9"
+version = "0.9.10"
 
 
 class DdmqError(Exception):
@@ -525,20 +523,43 @@ class broker:
     #     return True
 
 
-    # def delete_message(self, path):
-    #     """
-    #     Delete a specified message (NOT YET IMPLEMENTED)
+    def delete_message(self, path):
+        """
+        Delete a specified message
         
-    #     Args:
-    #         path:   path to the message to be deleted
+        Args:
+            path:   path to the message, or a message object, to be deleted
 
-    #     Returns:
-    #         None
-    #     """
+        Returns:
+            None
+        """
 
-    #     log.info('Deleting message {} from {}'.format(id, queue))
+        # check if the path is a message object
+        if path.__class__ == message:
 
-    #     return True
+            # check if the message has been consumed already
+            match = re.search('^\d+\.\d+\.\d+\.ddmq[a-zA-Z0-9]+$', path.filename)
+            if match:
+                path = os.path.join(self.root, path.queue, 'work', path.filename)
+
+            # check if the message has not yet been consumed
+            match = re.search('^\d+\.\d+\.ddmq[a-zA-Z0-9]+$', path.filename)
+            if match:
+                path = os.path.join(self.root, path.queue, 'work', path.filename)
+
+
+        log.info('Deleting message {}'.format(path))
+
+        # make sure the path follows the ddmq naming scheme
+        match = re.search('^.+(\d+\.)?\d+\.\d+\.ddmq[a-zA-Z0-9]+$', path)
+        if not match:
+            raise ValueError('The specified path ({}) does not look like a ddmq message file name'.format(path))
+
+        else:
+            # delete the message
+            os.remove(path)
+
+            return True
 
 
     def purge_queue(self, queue):
@@ -808,10 +829,10 @@ class broker:
 
         # generate message id
         msg.id = uuid.uuid4().hex
-        msg.filename = os.path.join(queue, '{}.{}.ddmq{}'.format(msg.priority, msg.queue_number, msg.id))
+        msg.filename = os.path.join('{}.{}.ddmq{}'.format(msg.priority, msg.queue_number, msg.id))
 
         # write the message to file
-        msg_filepath = os.path.join(self.root, msg.filename)
+        msg_filepath = os.path.join(self.root, queue, msg.filename)
         with open(msg_filepath, 'w') as message_file:
             message_file.write(msg.msg2json())
 
@@ -830,7 +851,7 @@ class broker:
             clean:  if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just consume the message(s) right away and not bother doing any cleaning first (faster).
 
         Returns:
-            a list of the messages that were fetched
+            a single message object if n=1 (default), or a list of the messages that were fetched if n > 1
         """
 
         log.info('Consuming {} message(s) from {}'.format(n, queue))
@@ -893,16 +914,22 @@ class broker:
         # return depending on how many messages are collected
         if len(restored_messages) == 0:
             return None
+        
+        # if only one message was requested
+        elif n == 1:
+            return restored_messages[0]
+        
+        # if more than one was requested, return a list of messages regardless of its length (even if only 1)
         else:
             return restored_messages
 
 
-    def nack(self, queue, msg_files, requeue=None, clean=True):
+    def nack(self, queue, msg_files=None, requeue=None, clean=True):
         """
         Negative acknowledgement of message(s)
         
         Args:
-            queue:      name of the queue the files are in
+            queue:      name of the queue the files are in, or the message object to be nacked
             msg_files:  either a single path or a list of paths to message(s) to nack
             requeue:    True will force message(s) to be requeued, False will force messages to be purged, None (default) will leave it up to the message itself if it should be requeued or not
             clean:      if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just ack the message(s) right away and not bother doing any cleaning first (faster).
@@ -910,6 +937,18 @@ class broker:
         Returns:
             True if everything goes according to plan
         """
+
+        # check if the queue is actually a message object
+        if queue.__class__ == message:
+
+            # let the options in this function call override the ones in the message
+            if not requeue:
+                requeue = queue.requeue
+
+            # extract message info
+            msg_files = queue.filename
+            queue = queue.queue
+
 
         # load the queue's settings
         self.get_settings(queue)
@@ -954,19 +993,35 @@ class broker:
         return nacked
 
 
-    def ack(self, queue, msg_files, requeue=False, clean=True):
+    def ack(self, queue, msg_files=None, requeue=None, clean=True):
         """
         Positive acknowledgement of message(s)
         
         Args:
-            queue:      name of the queue the files are in
+            queue:      name of the queue the files are in, or the message object to be acked
             msg_files:  either a single path or a list of paths to message(s) to ack
-            requeue:    True will force message(s) to be requeued, False (default) will force messages to be purged, None will leave it up to the message itself if it should be requeued or not
+            requeue:    True will force message(s) to be requeued, False will force messages to be purged, None (default) will leave it up to the message itself if it should be requeued or not
             clean:      if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just ack the message(s) right away and not bother doing any cleaning first (faster).
 
         Returns:
             a list of file names of all messages acknowledged
         """
+
+        # check if the queue is actually a message object
+        if queue.__class__ == message:
+
+            # let the options in this function call override the ones in the message
+            if not requeue:
+                requeue = queue.requeue
+
+            # extract message info
+            msg_files = queue.filename
+            queue = queue.queue
+
+
+        # check that there are message files
+        if not msg_files:
+            raise ValueError('Message files list is empty.')
 
         # convert single message to a list if needed
         if type(msg_files) != list:
@@ -976,6 +1031,7 @@ class broker:
         acked = []
         for msg_file in msg_files:
 
+            # construct the path to the message file
             msg_path = os.path.join(self.root, queue, 'work', msg_file)
 
             # check if the file exists

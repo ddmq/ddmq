@@ -168,3 +168,56 @@ Use case
 Since ddmq handles one file per message it will be much slower than other queues. A quick comparison with RabbitMQ showed that first publishing and then consuming 5000 messages is about 10x slower using ddmq (45s vs 4.5s). The point of ddmq is not performance, but to be used in environments where you can't run a server for some reason.
 
 My own motivation for writing ddmq was to run on a shared HPC cluster where I could not reliably run a server process on the same node all the time. The mounted network storage system was available everywhere and all the time though. The throughput was expected to be really low, maybe <10 messages per day so performance was not the main focus.
+
+**Example: parallelization within or beyond nodes with minimal effort**
+
+Let's say you have many task to go through, and each task takes more than a couple of seconds. A singel threaded approach to process n files could look like this:
+
+::
+
+    program.py:
+    
+    # go through the file names and process directly
+    for file in file_names:
+        run_task(file)
+
+This will take n*seconds_per_task to complete. If you instead submit each task to ddmq, you can start as many consumers as you want to handle the processing, and the time to complete should be around n*seconds_per_task/number_of_consumers
+
+::
+
+    program.py:
+    
+    # init queue
+    import ddmq
+    b = ddmq.broker('/tmp/ddmq', create=True)
+    b.create_queue('tasks')
+
+    # go through the file names and submit to queue
+    for file in file_names:
+        b.publish('tasks', msg_text=file)
+
+
+
+
+    consumer.py:
+
+    # init queue
+    import ddmq
+    import time
+    b = ddmq.broker('/tmp/ddmq', create=True)
+
+    while True:
+        msg = b.consume('tasks')
+
+        # wait 10s for messages if the queue is empty
+        if not msg:
+            time.sleep(10)
+        else:
+            # run the task and acknowledge the message
+            run_task(msg.message)
+            b.ack(msg)
+
+The nice thing about this type of parallelization is that it doesn't matter if you start 8 instances of the consumer script on a single node or if you start 80 instances in total spread over 10 nodes, as long as all of them can read/write the file system they will work. No need for multithreadded processes or MPI.
+
+
+

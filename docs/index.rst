@@ -64,8 +64,8 @@ This is likely because the location where pip installs the *ddmq* executable is 
 
 ::
 
-import ddmq
-ddmq.get_ddmq_bin_path()
+    import ddmq
+    ddmq.get_ddmq_bin_path()
 
 
 .. _intro:

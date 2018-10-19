@@ -30,10 +30,13 @@ import errno
 
 # import extra modules
 import yaml
-from ddmq import broker
-from ddmq import message
+# from ddmq import broker
+# from ddmq import message
 
-version = "0.9.9"
+from broker import broker
+from broker import message
+
+version = "0.9.10"
 
 
 
@@ -121,7 +124,7 @@ def view(args=None):
     """
     Handle the command-line sub-command view
     Usage:
-    ddmq view [-hfnjvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]
+    ddmq view [-hfnvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -133,7 +136,7 @@ def view(args=None):
     if not args:
         parser = argparse.ArgumentParser(
             description='View available queues and number of messages.',
-            usage='''ddmq view [-hfnjvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]'''
+            usage='''ddmq view [-hfnvd] [--format <plain|json|yaml>] <root> [queue1,queue2,...,queueN]'''
     )
         # add available options for this sub-command
         parser.add_argument('root', help="the message queue's root folder", type=str)
@@ -484,7 +487,7 @@ def consume(args=None):
         None
     """
     parser = argparse.ArgumentParser(
-        description='Consume message(s) from queue.',
+        description='Consume message(s) from a queue.',
         usage='''ddmq consume [-hfnCvd] [--format <plain|json|yaml>] <root> <queue>'''
 )
     # add available options for this sub-command
@@ -540,7 +543,7 @@ def ack(args=None):
     """
     Handle the command-line sub-command ack
     Usage:
-    ddmq ack [-hfnCvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]
+    ddmq ack [-hCrvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -549,8 +552,8 @@ def ack(args=None):
         None
     """
     parser = argparse.ArgumentParser(
-        description='Positively acknowledge message(s) from queue.',
-        usage='''ddmq ack [-hfnCvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]'''
+        description='Positively acknowledge message(s) from a queue.',
+        usage='''ddmq ack [-hCrvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]'''
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder")
@@ -588,7 +591,7 @@ def nack(args=None):
     """
     Handle the command-line sub-command nack
     Usage:
-    ddmq nack [-hfnCvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]
+    ddmq nack [-hCrvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]
     
     Args:
         args:   a pre-made args object, in the case of json being parsed from the command-line
@@ -597,8 +600,8 @@ def nack(args=None):
         None
     """
     parser = argparse.ArgumentParser(
-        description='Negatively acknowledge message(s) from queue.',
-        usage='''ddmq nack [-hfnCvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]'''
+        description='Negatively acknowledge message(s) from a queue.',
+        usage='''ddmq nack [-hCrvd] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]'''
 )
     # add available options for this sub-command
     parser.add_argument('root', help="the message queue's root folder")
@@ -630,6 +633,80 @@ def nack(args=None):
             print('failed nack {}'.format(os.path.join(brokerObj.root, args.queue, 'work', msg_file)))
 
 
+
+
+
+
+def del_msg(args=None):
+    """
+    Handle the command-line sub-command del_msg
+    Usage:
+    ddmq del_msg [-hCvds] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]
+    
+    Args:
+        args:   a pre-made args object, in the case of json being parsed from the command-line
+
+    Returns:
+        None
+    """
+    parser = argparse.ArgumentParser(
+        description='Delete message(s) from a queue.',
+        usage='''ddmq del_msg [-hCvds] <root> <queue> <message file1>[,<message file2>,..,<message fileN>]'''
+)
+    # add available options for this sub-command
+    parser.add_argument('root', help="the message queue's root folder")
+    parser.add_argument('queue', help="name of the queue the messages are in")
+    parser.add_argument('msg_files', help="comma-separated names of file names of the messages to acknowledge")
+    parser.add_argument('-C', '--skip-cleaning', action='store_false', help="set to nack the message without doing cleaning of the queue first")
+    parser.add_argument('-v', action='store_true', help="verbose mode")
+    parser.add_argument('-d', action='store_true', help="debug mode")
+    parser.add_argument('-s', action='store_true', help="silent mode")
+
+
+    # now that we're inside a subcommand, ignore the first two arguments
+    args = parser.parse_args(sys.argv[2:])
+
+    # create a broker object
+    brokerObj = create_broker(root=args.root, verbose=args.v, debug=args.d)
+
+    # readability
+    queue = args.queue
+    silent = args.s
+
+    # send the messages to deletion
+    deleted_msgs = 0
+    for msg_file in args.msg_files.split(','):
+
+        # from IPython.core.debugger import Tracer
+        # Tracer()()
+
+        # get the file name
+        msg_filename = os.path.basename(msg_file)
+
+        # is the filename of a consumed message?
+        match = re.search('^\d+\.\d+\.\d+\.ddmq[a-zA-Z0-9]+$', msg_filename)
+        if match:
+            msg_filename = os.path.join(args.root, queue, 'work', msg_filename)
+        
+        # is the filename of a not yet consumed message?
+        match = re.search('^\d+\.\d+\.ddmq[a-zA-Z0-9]+$', msg_filename)
+        if match:
+            msg_filename = os.path.join(args.root, queue, msg_filename)
+
+        # make sure the file exists
+        if not os.path.isfile(msg_filename):
+            if not silent:
+                print("Skipping {}, file does not exists".format(msg_filename))
+            continue
+
+        if brokerObj.delete_message(msg_filename):
+            if not silent:
+                print("Deleted {}".format(msg_filename))
+            deleted_msgs += 1
+
+
+    if not silent and deleted_msgs>1:
+        print('Deleted {} messages'.format(deleted_msgs))
 
 
 
@@ -795,18 +872,13 @@ def json_payload():
     Returns:
         None
     """
-
+    
     parser = argparse.ArgumentParser(
         description='Purge queue(s).',
         usage='''ddmq json \'<json object>\''''
         )
-    args = parser.parse_args(['json_payload'])
-
-    try:
-        # read the payload
-        payload = json.loads(sys.argv[2])
-    except ValueError:
-        sys.exit("Error: unable to load the JSON object")
+    parser.add_argument('json_payload', help="the json object, within single quotes", type=str)
+    args = parser.parse_args(sys.argv[2:])
 
     # initiate the options with default values
     options = { 'cmd':None,
@@ -826,6 +898,14 @@ def json_payload():
                 'skip_cleaning':False,
                 }
 
+    try:
+        # read the payload
+        payload = json.loads(args.json_payload)
+    except ValueError:
+        sys.exit("Error: unable to load the JSON object (wrong format or missing single quotes?)\n\nExample of structure and all the options that can be set:\n\n'{}'".format(json.dumps(options)))
+
+    
+
     # apply the payload over the defaults
     options.update(payload)
 
@@ -841,7 +921,6 @@ def json_payload():
 
 # TODO
 # def search():
-# def remove():
 # def modify():
 
 
@@ -871,6 +950,7 @@ publish   Publish message to queue
 consume   Consume message from queue
 ack       Positivly acknowledge a message
 nack      Negativly acknowledge a message (possibly requeue)
+del_msg   Delete the specified message
 purge     Purge all messages from queue
 clean     Clean out expired messages from queue
 json      Run a command packaged as a JSON object
@@ -890,6 +970,7 @@ publish   Publish message to queue
 consume   Consume message from queue
 ack       Positivly acknowledge a message
 nack      Negativly acknowledge a message (possibly requeue)
+del_msg   Delete the specified message
 purge     Purge all messages from queue
 clean     Clean out expired messages from queue
 json      Run a command packaged as a JSON object
@@ -920,7 +1001,7 @@ https://github.com/ddmq/ddmq
         exit(1)
 
     # check if there is no command given
-    elif args.command not in ['view', 'create', 'delete', 'publish', 'consume', 'ack', 'nack', 'purge', 'clean', 'json']:
+    elif args.command not in ['view', 'create', 'delete', 'publish', 'consume', 'ack', 'nack', 'del_msg', 'purge', 'clean', 'json']:
         print("Unrecognized command: {}".format(args.command))
         parser.print_help()
         exit(1)
