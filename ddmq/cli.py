@@ -36,7 +36,7 @@ import yaml
 from broker import broker
 from broker import message
 
-version = "0.9.10"
+version = "0.9.14"
 
 
 

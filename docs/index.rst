@@ -53,7 +53,7 @@ Python Module Usage
     b = ddmq.broker('/tmp/ddmq', create=True)
     b.publish(queue='queue_name', msg_text='Hello World!')
     msg = b.consume(queue='queue_name')
-    print(msg[0].message)
+    print(msg.message)
 
 
 

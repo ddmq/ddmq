@@ -217,7 +217,7 @@ This will take n*seconds_per_task to complete. If you instead submit each task t
             run_task(msg.message)
             b.ack(msg)
 
-The nice thing about this type of parallelization is that it doesn't matter if you start 8 instances of the consumer script on a single node or if you start 80 instances in total spread over 10 nodes, as long as all of them can read/write the file system they will work. No need for multithreadded processes or MPI.
+The nice thing about this type of parallelization is that it doesn't matter if you start 8 instances of the consumer script on a single node or if you start 80 instances in total spread over 10 nodes, as long as all of them can read/write to the file system they will work. No need for multithreadded processes or MPI.
 
 
 

@@ -37,7 +37,7 @@ class message:
             timeout:        a custom timeout limit to be used when processing the message, in seconds
             id:             randomly generated uuid for the message
             priority:       a custom priority to be used when processing the message
-            queue_number:   the number in the queue the message has. This number determins the order of messages with the same priority level
+            queue_number:   the number in the queue the message has. This number determins the order of messages with the same priority level (the epoch time the message was created)
             filename:       file name of the file containing this message
             requeue:        if True, the message will be requeued with default priority after it expires. If set to an int, that will be used as a custom requeuing priority
             counter         counts the number of times the message has been placed in queue. A list where the first number tells how many times the message has been processed and the second number defines how many times it should be processed at most (the default None means infinite)

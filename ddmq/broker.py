@@ -20,7 +20,7 @@ id = 89723438b9d0403c91943f4ffaf8ba35
 message = Hello World!
 priority = 999
 queue = queue_name
-queue_number = 1
+queue_number = 123456782356356256566
 requeue = False
 requeue_counter = 0
 requeue_limit = None
@@ -33,7 +33,7 @@ id = 89723438b9d0403c91943f4ffaf8ba35
 message = Hello World!
 priority = 999
 queue = queue_name
-queue_number = 1
+queue_number = 1234567823561341341356
 requeue = False
 requeue_counter = 0
 requeue_limit = None
@@ -73,7 +73,7 @@ except ValueError:
 # from IPython.core.debugger import Tracer
 # Tracer()()
 
-version = "0.9.10"
+version = "0.9.14"
 
 
 class DdmqError(Exception):
@@ -706,44 +706,20 @@ class broker:
                 return True
 
 
-    def get_queue_number(self, queue):
+    def get_queue_number(self):
         """
-        Generate the next incremental queue number for a specified queue
+        Generate the next incremental queue number for a specified queue (epoch time of creation without the decimal punctuation)
         
         Args:
-            queue:  name of the queue to generate the queue number for
+            None
 
         Returns:
-            an int that is the next queue number in succession
+            a string that is the current timestamp, with the decimal punctuation removed
         """
         
-        log.debug('Generating next queue number in {}'.format(queue))
+        log.debug('Generating next queue number')
 
-        # list all files in queue folder
-        try:
-            messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
-        except (FileNotFoundError, OSError) as e:
-            # try creating the queue if asked to
-            if self.create:
-                self.create_folder(os.path.join(self.root, queue))
-                self.create_folder(os.path.join(self.root, queue, 'work'))
-                messages = fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*')
-            else:
-                # raise an error otherwise
-                raise FileNotFoundError("Unable to read from the queue folder: {}".format(e))
-        
-        # init
-        max_queue_number = 0
-
-        # for each file
-        for msg in sorted(messages):
-
-            # get the max queue number at the moment
-            current_queue_number = int(os.path.basename(msg).split('.')[1])
-            if current_queue_number > max_queue_number:
-                max_queue_number = current_queue_number
-            
-        return max_queue_number+1
+        return str(time.time()).replace('.', '')
 
 
     def create_folder(self, path):
@@ -825,7 +801,7 @@ class broker:
         msg = message(message=msg_text, queue=queue, priority=priority, requeue=requeue, timeout=timeout, requeue_counter=requeue_counter, requeue_limit=requeue_limit)
 
         # get the next queue number
-        msg.queue_number = self.get_queue_number(queue)
+        msg.queue_number = self.get_queue_number()
 
         # generate message id
         msg.id = uuid.uuid4().hex

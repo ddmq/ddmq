@@ -112,7 +112,7 @@ Python Module Usage
     msg = b.consume(queue='queue_name')
 
     # print the message contained
-    print(msg[0].message)
+    print(msg.message)
 
 
 
@@ -145,7 +145,7 @@ The message files themselves contain a JSON string with all the properties that 
 
 ::
 
-    {"priority": 999, "queue_number": 2, "requeue_counter": 0, "filename": "queue_one/999.2.ddmq1ed12af3760e4adfb62a9109f9b61214", "queue": "queue_one", "requeue_limit": null, "timeout": null, "message": "msg", "requeue": false, "id": "1ed12af3760e4adfb62a9109f9b61214"}
+    {"priority": 999, "queue_number": "1234556789356735", "requeue_counter": 0, "filename": "queue_one/999.2.ddmq1ed12af3760e4adfb62a9109f9b61214", "queue": "queue_one", "requeue_limit": null, "timeout": null, "message": "msg", "requeue": false, "id": "1ed12af3760e4adfb62a9109f9b61214"}
 
 
 
@@ -216,7 +216,7 @@ This will take n*seconds_per_task to complete. If you instead submit each task t
             run_task(msg.message)
             b.ack(msg)
 
-The nice thing about this type of parallelization is that it doesn't matter if you start 8 instances of the consumer script on a single node or if you start 80 instances in total spread over 10 nodes, as long as all of them can read/write the file system they will work. No need for multithreadded processes or MPI.
+The nice thing about this type of parallelization is that it doesn't matter if you start 8 instances of the consumer script on a single node or if you start 80 instances in total spread over 10 nodes, as long as all of them can read/write to the file system they will work. No need for multithreadded processes or MPI.
 
 Index
 =====

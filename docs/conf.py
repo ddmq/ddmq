@@ -27,7 +27,7 @@ copyright = u'2018, Martin Dahlö'
 author = u'Martin Dahlö'
 
 # The short X.Y version
-version = u''
+version = u'0.9.14'
 # The full version, including alpha/beta/rc tags
 release = u''
 
