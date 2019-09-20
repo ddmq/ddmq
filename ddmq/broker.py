@@ -817,7 +817,7 @@ class broker:
 
 
 
-    def consume(self, queue, n=1, clean=True):
+    def consume(self, queue, n=1, clean=True, path=None):
         """
         Consume 1 (or more) messages from a specified queue. The consumed messages will be moved to the queues work folder and have the expiry epoch time prepended to the file name.
         
@@ -852,11 +852,17 @@ class broker:
         # init
         restored_messages = []
         
-        # list all ddmq files in queue folder
-        try:
-            msg_files = sorted(fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'))[:n]
-        except (FileNotFoundError, OSError) as e:
-            raise FileNotFoundError("Unable to read from the queue folder: {}".format(os.path.join(self.root, queue)))
+        # fetch a specified message if asked to
+        if path:
+            msg_files = [path]
+        
+        else:
+            # list all ddmq files in queue folder
+            try:
+                msg_files = sorted(fnmatch.filter(os.listdir(os.path.join(self.root, queue)), '*.ddmq*'))[:n]
+            except (FileNotFoundError, OSError) as e:
+                raise FileNotFoundError("Unable to read from the queue folder: {}".format(os.path.join(self.root, queue)))
+        
         
         for msg_filename in msg_files:
 
