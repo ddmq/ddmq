@@ -214,7 +214,7 @@ class broker:
         log.debug('Reading config file {}'.format(os.path.join(self.root, queue, 'ddmq.yaml')))
 
         with open(os.path.join(self.root, queue, 'ddmq.yaml'), 'r') as settings_handle:
-            conf = yaml.load(settings_handle)
+            conf = yaml.load(settings_handle, Loader=yaml.SafeLoader)
             if not conf:
                 return {}
             return conf
@@ -241,7 +241,7 @@ class broker:
 
             # must be the first time the queue settings are requested, fetch them from file and store for later
             with open(os.path.join(self.root, queue, 'ddmq.yaml'), 'r') as fh:
-                queue_settings = yaml.load(fh)
+                queue_settings = yaml.load(fh, Loader=yaml.SafeLoader)
                 self.queue_settings[queue] = self.global_settings.copy()
                 self.queue_settings[queue].update(queue_settings)
                 return self.queue_settings[queue]
