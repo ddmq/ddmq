@@ -62,6 +62,7 @@ import time
 import fnmatch
 import logging as log
 import re
+import errno
 
 # import extra modules
 import yaml
