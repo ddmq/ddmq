@@ -735,7 +735,13 @@ class broker:
         
         log.info('Creating folder: {}'.format(path))
 
-        os.makedirs(path)
+        # it's ok if the folder already exists
+        try:
+            os.mkdir(path)
+        except OSError as exc:
+            if exc.errno != errno.EEXIST:
+                raise
+            pass
 
 
 
