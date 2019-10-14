@@ -462,7 +462,7 @@ def publish(args=None):
 
     # call the publish function with the given arguments
     try:
-        msg = brokerObj.publish(queue=args.queue, msg_text=args.message, priority=args.priority, clean=args.skip_cleaning, requeue=requeue, requeue_prio=args.requeue_prio, timeout=args.timeout, requeue_limit=args.requeue_limit)
+        msg = brokerObj.publish(queue=args.queue, msg_text=args.message, priority=args.priority, skip_cleaning=args.skip_cleaning, requeue=requeue, requeue_prio=args.requeue_prio, timeout=args.timeout, requeue_limit=args.requeue_limit)
     except IOError:
         sys.exit("Unable to write to the specified queue directory ({}).".format(os.path.join(args.root, args.queue)))
 
@@ -496,7 +496,7 @@ def consume(args=None):
     parser.add_argument('-f', action='store_true', help="create the root folder and queue if needed")
     parser.add_argument('-n', nargs='?', help="the number of messages that will be consumed", type=int)
     parser.add_argument('--format', nargs='?', help="specify output format (plain, json, yaml)", default='json', type=str)
-    parser.add_argument('-C', '--skip-cleaning', action='store_false', help="set to consume the message from the queue without doing cleaning of the queue first")
+    parser.add_argument('-C', '--skip-cleaning', action='store_true', help="set to consume the message from the queue without doing cleaning of the queue first")
     parser.add_argument('-v', action='store_true', help="verbose mode")
     parser.add_argument('-d', action='store_true', help="debug mode")
 
@@ -513,7 +513,7 @@ def consume(args=None):
 
     # consume the messages
     try:
-        messages = brokerObj.consume(queue=args.queue, n=args.n, clean=args.skip_cleaning)
+        messages = brokerObj.consume(queue=args.queue, n=args.n, skip_cleaning=args.skip_cleaning)
     except IOError:
         sys.exit("Unable to read/write to the specified queue directory ({}).".format(os.path.join(args.root, args.queue)))
 

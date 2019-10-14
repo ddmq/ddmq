@@ -756,7 +756,7 @@ class broker:
  #  #    ##    #    #       #    #  #     # #     #    #    
 ### #     #    #    ####### #     # #     #  #####     #    
 
-    def publish(self, queue, msg_text=None, priority=None, clean=True, requeue=False, requeue_prio=None, timeout=None, requeue_counter=0, requeue_limit=None):
+    def publish(self, queue, msg_text=None, priority=None, skip_cleaning=True, requeue=False, requeue_prio=None, timeout=None, requeue_counter=0, requeue_limit=None):
         """
         Publish a message to a queue
         
@@ -764,7 +764,7 @@ class broker:
             queue:          name of the queue to publish to
             msg_text:       the actual message
             priority:       the priority of the message (default 999). Lower number means higher priority when processing
-            clean:          if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just publish the message right away and not bother doing any cleaning first (faster).
+            skip_cleaning:  if False, the client will first clean out any expired messages from the queue's work directory. If True, the client will just publish the message right away and not bother doing any cleaning first (faster).
             requeue:        if True, the message will be requeud after it expires. If False it will just be deleted.
             requeue_prio:   if set (int), the message will get this priority when requeued. Default is 0, meaning requeued messages will be put first in the queue.
             timeout:        if set (int), will override the global and queue specific default setting for how many seconds a message expires after.
@@ -785,7 +785,7 @@ class broker:
             self.get_settings(queue)
 
         # clean the queue unless asked not to
-        if clean:
+        if not skip_cleaning:
             self.clean(queue)
 
         # if no message is given, set it to an empty string
@@ -824,14 +824,15 @@ class broker:
 
 
 
-    def consume(self, queue, n=1, clean=True, path=None):
+    def consume(self, queue, n=1, skip_cleaning=False, path=None):
         """
         Consume 1 (or more) messages from a specified queue. The consumed messages will be moved to the queues work folder and have the expiry epoch time prepended to the file name.
         
         Args:
-            queue:  name of the queue to consume from
-            n:      the number (int) of messages to consume
-            clean:  if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just consume the message(s) right away and not bother doing any cleaning first (faster).
+            queue:          name of the queue to consume from
+            n:              the number (int) of messages to consume
+            skip_cleaning:  if False, the client will first clean out any expired messages from the queue's work directory. If True, the client will just consume the message(s) right away and not bother doing any cleaning first (faster)
+            path:           specified path to message file to consume, instead of fetching the next message in line
 
         Returns:
             a single message object if n=1 (default), or a list of the messages that were fetched if n > 1
@@ -849,7 +850,7 @@ class broker:
             self.get_settings(queue)
 
         # clean the queue unless asked not to
-        if clean:
+        if not skip_cleaning:
             self.clean(queue)
 
         # set default value if missing
