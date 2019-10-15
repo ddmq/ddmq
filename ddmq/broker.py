@@ -933,8 +933,15 @@ class broker:
         if queue.__class__ == message:
 
             # let the options in this function call override the ones in the message
-            if not requeue:
-                requeue = queue.requeue
+            if requeue is None:
+                
+                # if it is up to the message if it should be requeued or not
+                msg = self.get_message(msg_path)
+                if msg.requeue:
+                    requeue = msg.requeue
+                else:
+                    # else the queue options decide
+                    requeue = queue.requeue
 
             # extract message info
             msg_files = queue.filename
@@ -966,11 +973,9 @@ class broker:
             if requeue:
                 self.requeue_message(msg_path)
 
-            # if it is up to the message if it should be requeued or not
-            elif requeue is None:
-                msg = self.get_message(msg_path)
-                if msg.requeue:
-                    self.requeue_message(msg_path, msg)
+            # if neither the function call, the message itself, or the queue has specified what to do with nacked messages, just remove it by letting it fall into the else statement below
+            # elif requeue is None:
+                # pass
 
             # if not, remove the nacknowledged message
             else:
