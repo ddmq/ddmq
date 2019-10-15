@@ -878,7 +878,7 @@ class broker:
             msg_filepath = os.path.join(self.root, queue, msg_filename)
 
             try:
-                Tracer()()
+                # Tracer()()
                 # load the message from the file
                 with open(msg_filepath, 'r') as msg_handle:
                     msg = message.json2msg(json.load(msg_handle))
