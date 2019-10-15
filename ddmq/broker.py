@@ -71,7 +71,7 @@ try:
 except ValueError:
     from message import message
 
-# from IPython.core.debugger import Tracer
+from IPython.core.debugger import Tracer
 # Tracer()()
 
 version = "0.9.14"
@@ -878,6 +878,7 @@ class broker:
             msg_filepath = os.path.join(self.root, queue, msg_filename)
 
             try:
+                Tracer()()
                 # load the message from the file
                 with open(msg_filepath, 'r') as msg_handle:
                     msg = message.json2msg(json.load(msg_handle))
@@ -986,7 +987,7 @@ class broker:
         return nacked
 
 
-    def ack(self, queue, msg_files=None, requeue=None, skip_cleaning=False):
+    def ack(self, queue, msg_files=None, requeue=False, skip_cleaning=False):
         """
         Positive acknowledgement of message(s)
         
