@@ -71,7 +71,7 @@ try:
 except ValueError:
     from message import message
 
-from IPython.core.debugger import Tracer
+# from IPython.core.debugger import Tracer
 # Tracer()()
 
 version = "0.9.14"
