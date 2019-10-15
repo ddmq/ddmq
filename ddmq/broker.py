@@ -932,17 +932,6 @@ class broker:
         # check if the queue is actually a message object
         if queue.__class__ == message:
 
-            # let the options in this function call override the ones in the message
-            if requeue is None:
-                
-                # if it is up to the message if it should be requeued or not
-                msg = self.get_message(msg_path)
-                if msg.requeue:
-                    requeue = msg.requeue
-                else:
-                    # else the queue options decide
-                    requeue = queue.requeue
-
             # extract message info
             msg_files = queue.filename
             queue = queue.queue
@@ -968,6 +957,17 @@ class broker:
             if not os.path.isfile(msg_path):
                 print("Warning: message file missing, {}".format(msg_path))
                 continue
+                
+            # let the options in this function call override the ones in the message
+            if requeue is None:
+                
+                # if it is up to the message if it should be requeued or not
+                msg = self.get_message(msg_path)
+                if msg.requeue:
+                    requeue = msg.requeue
+                else:
+                    # else the queue options decide
+                    requeue = queue.requeue
 
             # if it should be requeued
             if requeue:
