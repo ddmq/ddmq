@@ -915,7 +915,7 @@ class broker:
             return restored_messages
 
 
-    def nack(self, queue, msg_files=None, requeue=None, skip_cleaning=False):
+    def nack(self, queue, msg_files=None, requeue=False, skip_cleaning=False):
         """
         Negative acknowledgement of message(s)
         
