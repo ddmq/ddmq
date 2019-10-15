@@ -756,7 +756,7 @@ class broker:
  #  #    ##    #    #       #    #  #     # #     #    #    
 ### #     #    #    ####### #     # #     #  #####     #    
 
-    def publish(self, queue, msg_text=None, priority=None, skip_cleaning=True, requeue=False, requeue_prio=None, timeout=None, requeue_counter=0, requeue_limit=None):
+    def publish(self, queue, msg_text=None, priority=None, skip_cleaning=True, requeue=True, requeue_prio=None, timeout=None, requeue_counter=0, requeue_limit=None):
         """
         Publish a message to a queue
         
