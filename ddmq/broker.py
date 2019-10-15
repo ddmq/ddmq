@@ -71,7 +71,7 @@ try:
 except ValueError:
     from message import message
 
-# from IPython.core.debugger import Tracer
+from IPython.core.debugger import Tracer
 # Tracer()()
 
 version = "0.9.14"
@@ -1005,7 +1005,7 @@ class broker:
         if queue.__class__ == message:
 
             # let the options in this function call override the ones in the message
-            if not requeue:
+            if requeue is None:
                 requeue = queue.requeue
 
             # extract message info
