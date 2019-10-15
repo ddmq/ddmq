@@ -345,7 +345,7 @@ class broker:
                     if not msg.requeue_limit or msg.requeue_counter < msg.requeue_limit:
                         
                         # requeue the message
-                        self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, requeue_counter=msg.requeue_counter+1, requeue_limit=msg.requeue_limit, clean=False)
+                        self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, requeue_counter=msg.requeue_counter+1, requeue_limit=msg.requeue_limit, skip_cleaning=True)
 
                 # then delete the old message file
                 os.remove(os.path.join(self.root, queue, 'work', msg_filename))
@@ -648,7 +648,7 @@ class broker:
             msg.priority = msg.requeue
 
         # requeue the message
-        self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, requeue_counter=msg.requeue_counter+1, requeue_limit=msg.requeue_limit, clean=False)
+        self.publish(queue=msg.queue, msg_text=msg.message, priority=msg.priority, requeue=msg.requeue, requeue_counter=msg.requeue_counter+1, requeue_limit=msg.requeue_limit, skip_cleaning=True)
 
         # then delete the old message file, assumes the message is consumed and located in the work dir
         os.remove(os.path.join(self.root, msg.queue, 'work', os.path.split(path)[-1]))
@@ -914,7 +914,7 @@ class broker:
             return restored_messages
 
 
-    def nack(self, queue, msg_files=None, requeue=None, clean=True):
+    def nack(self, queue, msg_files=None, requeue=None, skip_cleaning=False):
         """
         Negative acknowledgement of message(s)
         
@@ -922,7 +922,7 @@ class broker:
             queue:      name of the queue the files are in, or the message object to be nacked
             msg_files:  either a single path or a list of paths to message(s) to nack
             requeue:    True will force message(s) to be requeued, False will force messages to be purged, None (default) will leave it up to the message itself if it should be requeued or not
-            clean:      if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just ack the message(s) right away and not bother doing any cleaning first (faster).
+            skip_cleaning:      if False, the client will first clean out any expired messages from the queue's work directory. If True, the client will just nack the message(s) right away and not bother doing any cleaning first (faster).
 
         Returns:
             True if everything goes according to plan
@@ -939,7 +939,10 @@ class broker:
             msg_files = queue.filename
             queue = queue.queue
 
-
+        # clean the queue unless asked not to
+        if not skip_cleaning:
+            self.clean(queue)
+            
         # load the queue's settings
         self.get_settings(queue)
 
@@ -968,7 +971,7 @@ class broker:
                 if msg.requeue:
                     self.requeue_message(msg_path, msg)
 
-            # if not, remove the acknowledged message
+            # if not, remove the nacknowledged message
             else:
                 # assumes the message is consumed and located in the work dir
                 try:
@@ -983,15 +986,15 @@ class broker:
         return nacked
 
 
-    def ack(self, queue, msg_files=None, requeue=None, clean=True):
+    def ack(self, queue, msg_files=None, requeue=None, skip_cleaning=False):
         """
         Positive acknowledgement of message(s)
         
         Args:
-            queue:      name of the queue the files are in, or the message object to be acked
-            msg_files:  either a single path or a list of paths to message(s) to ack
-            requeue:    True will force message(s) to be requeued, False will force messages to be purged, None (default) will leave it up to the message itself if it should be requeued or not
-            clean:      if True, the client will first clean out any expired messages from the queue's work directory. If False, the client will just ack the message(s) right away and not bother doing any cleaning first (faster).
+            queue:          name of the queue the files are in, or the message object to be acked
+            msg_files:      either a single path or a list of paths to message(s) to ack
+            requeue:        True will force message(s) to be requeued, False will force messages to be purged, None (default) will leave it up to the message itself if it should be requeued or not
+            skip_cleaning:  if False, the client will first clean out any expired messages from the queue's work directory. If True, the client will just ack the message(s) right away and not bother doing any cleaning first (faster).
 
         Returns:
             a list of file names of all messages acknowledged
